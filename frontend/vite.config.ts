@@ -14,6 +14,11 @@ export default defineConfig({
     port: 3000,
     host: "0.0.0.0",
     strictPort: true,
+    // The sandbox preview proxies the app through dynamic gateway hostnames
+    // (e.g. *.fcapp.run). Allow them all so Vite's host check never blocks
+    // the preview. This is safe here: the dev server is only exposed inside
+    // the sandbox network, never on the public internet.
+    allowedHosts: true,
     proxy: {
       "/api": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/media": { target: "http://127.0.0.1:8000", changeOrigin: true },
