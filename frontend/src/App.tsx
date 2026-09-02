@@ -10,8 +10,10 @@ import RouteInstructions from "@/components/RouteInstructions";
 import EmptyState from "@/components/EmptyState";
 import LoadingStages from "@/components/LoadingStages";
 import ErrorState from "@/components/ErrorState";
+import AssumptionsPanel from "@/components/AssumptionsPanel";
 import type { PlanPayload } from "@/types";
 import { usePlanTrip } from "@/hooks/usePlanTrip";
+import { friendlyError } from "@/services/api";
 
 export default function App() {
   const [result, setResult] = useState<PlanPayload | null>(null);
@@ -52,7 +54,7 @@ export default function App() {
 
         {error && (
           <div className="mt-6">
-            <ErrorState message={error.message} onRetry={() => reset()} />
+            <ErrorState message={friendlyError(error)} onRetry={() => reset()} />
           </div>
         )}
 
@@ -100,6 +102,9 @@ export default function App() {
             <EldLogsPanel payload={result} />
           </>
         )}
+
+        {/* Assumptions — always available, collapsed by default */}
+        <AssumptionsPanel />
       </main>
 
       <footer className="mt-10 bg-night-950 py-6 text-center text-xs text-slate-400">

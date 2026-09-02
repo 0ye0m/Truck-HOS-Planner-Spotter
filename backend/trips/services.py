@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, time as dt_time, timedelta
+from datetime import date, datetime, time as dt_time
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
@@ -56,6 +56,28 @@ class TripPlanningError(Exception):
 
 
 @dataclass
+class PreparedTrip:
+    """
+    Everything produced by the shared preparation stage:
+
+    geocoding -> time base -> routing -> HOS scheduling.
+
+    Used by BOTH the full plan pipeline and the dry-run validate endpoint,
+    so the two can never drift apart.
+    """
+
+    current: GeocodeResult
+    pickup: GeocodeResult
+    dropoff: GeocodeResult
+    tz_name: str
+    start_local: datetime
+    assumed_start_time: bool
+    leg_results: list
+    legs: list[RouteLeg]
+    schedule: Schedule
+
+
+@dataclass
 class TripInput:
     current_location: str
     pickup_location: str
@@ -84,11 +106,17 @@ class TripPlanner:
     # Public entry point
     # ------------------------------------------------------------------
 
-    def plan(self, data: TripInput) -> dict[str, Any]:
+    def prepare(self, data: TripInput) -> PreparedTrip:
+        """
+        Shared preparation stage (geocode → time base → route → schedule).
+
+        Raises TripPlanningError with a safe, user-facing message on any
+        failure. No persistence happens here.
+        """
         # 1. Geocode the three locations --------------------------------
-        current = self._geocode(data.current_location, "current location")
-        pickup = self._geocode(data.pickup_location, "pickup location")
-        dropoff = self._geocode(data.dropoff_location, "dropoff location")
+        current = self._geocode(data.current_location)
+        pickup = self._geocode(data.pickup_location)
+        dropoff = self._geocode(data.dropoff_location)
 
         # 2. Home-terminal time zone + start datetime --------------------
         tz_name = data.timezone or timezone_for_state(current.state, "America/Chicago")
@@ -141,6 +169,22 @@ class TripPlanner:
         except HosEngineError as exc:
             raise TripPlanningError(str(exc), "hos-engine-error")
 
+        return PreparedTrip(
+            current=current,
+            pickup=pickup,
+            dropoff=dropoff,
+            tz_name=tz_name,
+            start_local=start_local,
+            assumed_start_time=assumed,
+            leg_results=leg_results,
+            legs=legs,
+            schedule=schedule,
+        )
+
+    def plan(self, data: TripInput) -> dict[str, Any]:
+        prepared = self.prepare(data)
+        schedule = prepared.schedule
+
         # 5. Validate BEFORE serving — never serve a violating schedule ---
         violations = validate_schedule(schedule, data.current_cycle_used)
         errors = [v for v in violations if v["severity"] == "error"]
@@ -163,12 +207,12 @@ class TripPlanner:
         # 8. Persist + render ---------------------------------------------
         return self._build_payload(
             data=data,
-            tz_name=tz_name,
-            assumed_start_time=assumed,
-            current=current,
-            pickup=pickup,
-            dropoff=dropoff,
-            leg_results=leg_results,
+            tz_name=prepared.tz_name,
+            assumed_start_time=prepared.assumed_start_time,
+            current=prepared.current,
+            pickup=prepared.pickup,
+            dropoff=prepared.dropoff,
+            leg_results=prepared.leg_results,
             schedule=schedule,
             daily_logs=daily_logs,
             cycle_at_day=cycle_at_day,
@@ -189,7 +233,7 @@ class TripPlanner:
         label = f"{city}, {state}".strip(", ") if state else city or result.display_name
         return (label or result.display_name, result.lat, result.lon)
 
-    def _geocode(self, address: str, role: str) -> GeocodeResult:
+    def _geocode(self, address: str) -> GeocodeResult:
         try:
             return self.geocoder.geocode(address)
         except GeocodingError as exc:

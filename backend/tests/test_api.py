@@ -286,3 +286,71 @@ def test_route_endpoint(mock_services):
     assert route.status_code == 200
     assert route.data["provider"] == "OSRM"
     assert route.data["geometry"]
+
+
+# ----------------------------------------------------------------------
+# Regression tests: error endpoints that previously returned HTTP 500
+# ----------------------------------------------------------------------
+
+@pytest.mark.django_db
+def test_geocode_unknown_address_returns_structured_400(mock_services):
+    """GET /api/geocode/ with an unresolvable place must be a structured
+    400, never a 500 (regression: GeocodingError was not caught)."""
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    response = client.get("/api/geocode/", {"q": "nowhere"})
+    assert response.status_code == 400
+    assert response.data["code"] == "address-not-found"
+    assert "more specific" in response.data["error"]
+
+
+@pytest.mark.django_db
+def test_validate_invalid_timezone_falls_back_not_500(mock_services):
+    """POST /api/trips/validate/ with an invalid timezone must fall back to
+    the default time base and return 200 (regression: unguarded ZoneInfo)."""
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    response = client.post(
+        VALIDATE_URL,
+        {**DEMO, "timezone": "Not/AZone"},
+        format="json",
+    )
+    assert response.status_code == 200, response.data
+    assert response.data["schedulable"] is True
+
+
+@pytest.mark.django_db
+def test_plan_and_validate_share_the_same_preparation(mock_services):
+    """The dry-run endpoint must report the same route numbers as the full
+    pipeline (single shared preparation stage, no drift)."""
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    planned = client.post(PLAN_URL, DEMO, format="json")
+    validated = client.post(VALIDATE_URL, DEMO, format="json")
+    assert planned.status_code == 201 and validated.status_code == 200
+    assert (
+        planned.data["route"]["distance_miles"]
+        == validated.data["route"]["distance_miles"]
+    )
+    assert (
+        planned.data["hos_summary"]["total_driving_hours"]
+        == validated.data["hos_summary"]["total_driving_hours"]
+    )
+
+
+@pytest.mark.django_db
+def test_trip_detail_schedule_includes_start_and_end(mock_services):
+    """GET /api/trips/{id}/ schedule must expose start/end so the frontend
+    ETA/duration cards stay consistent with the plan response."""
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    planned = client.post(PLAN_URL, DEMO, format="json")
+    trip_id = planned.data["trip"]["id"]
+    detail = client.get(f"/api/trips/{trip_id}/")
+    assert detail.status_code == 200
+    assert detail.data["schedule"]["start"] == planned.data["schedule"]["start"]
+    assert detail.data["schedule"]["end"] == planned.data["schedule"]["end"]

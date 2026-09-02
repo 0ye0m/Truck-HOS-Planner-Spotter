@@ -15,8 +15,10 @@ PY="$BACKEND/venv/bin/python"
 start_backend() {
   cd "$BACKEND"
   # Apply migrations (idempotent) then run the dev server.
+  # NOTE: no `exec` here — exec would replace this subshell and kill the
+  # supervision loop on the first backend exit.
   "$PY" manage.py migrate --no-input >/dev/null 2>&1 || true
-  exec "$PY" manage.py runserver 0.0.0.0:8000 --noreload
+  "$PY" manage.py runserver 0.0.0.0:8000 --noreload
 }
 
 # Supervise the backend: restart it if it ever dies.

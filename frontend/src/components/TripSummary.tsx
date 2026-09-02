@@ -37,8 +37,26 @@ function fmtHours(hours: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+/** "Mon, Sep 7 · 14:35" in the trip's home-terminal time zone. */
+function fmtEta(iso: string, timeZone?: string): string {
+  const date = new Date(iso);
+  const datePart = date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    ...(timeZone ? { timeZone } : {}),
+  });
+  const timePart = date.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    ...(timeZone ? { timeZone } : {}),
+  });
+  return `${datePart} · ${timePart}`;
+}
+
 export default function TripSummary({ payload }: { payload: PlanPayload }) {
-  const { route, hos_summary, schedule, logs } = payload;
+  const { route, hos_summary, schedule, logs, trip } = payload;
   const fuelStops = schedule.activities.filter((a) => a.type === "FUEL").length;
   const restStops = schedule.activities.filter(
     (a) => a.type === "SLEEPER_BERTH"
@@ -47,11 +65,20 @@ export default function TripSummary({ payload }: { payload: PlanPayload }) {
     (a) => a.type === "RESTART_34H"
   ).length;
 
+  // Compliant trip duration = schedule span (includes required breaks and
+  // rests) — the actually useful "when will this trip take" number.
+  const tripDurationHours =
+    schedule.start && schedule.end
+      ? (new Date(schedule.end).getTime() - new Date(schedule.start).getTime()) /
+        3_600_000
+      : 0;
+  const homeTz = trip.home_terminal_timezone;
+
   return (
-    <section className="mt-6">
-      <div className="mb-3 flex items-center justify-between px-1">
+    <section className="mt-6" aria-label="Trip summary">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
         <h2 className="text-base font-semibold text-night-900">Trip Summary</h2>
-        {payload.trip.assumed_start_time && (
+        {trip.assumed_start_time && (
           <span className="rounded-full bg-slate-200/70 px-3 py-1 text-[11px] font-medium text-slate-600">
             Assumed start time 06:00 (home terminal) — adjust in advanced
             options
@@ -59,16 +86,32 @@ export default function TripSummary({ payload }: { payload: PlanPayload }) {
         )}
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        <Stat label="Route distance" value={`${route.distance_miles.toFixed(0)} mi`} accent />
-        <Stat label="Est. driving time" value={fmtHours(route.duration_hours)} accent />
-        <Stat label="Total driving (HOS)" value={`${hos_summary.total_driving_hours.toFixed(1)} h`} />
-        <Stat label="Total on-duty" value={`${hos_summary.total_on_duty_hours.toFixed(1)} h`} />
+        <Stat
+          label="Route distance"
+          value={`${route.distance_miles.toFixed(0)} mi`}
+          accent
+        />
+        <Stat
+          label="Driving time"
+          value={`${hos_summary.total_driving_hours.toFixed(1)} h`}
+          accent
+        />
+        <Stat
+          label="Trip duration (HOS)"
+          value={fmtHours(tripDurationHours)}
+        />
+        <Stat
+          label="ETA at dropoff"
+          value={schedule.end ? fmtEta(schedule.end, homeTz) : "—"}
+        />
         <Stat label="Fuel stops" value={String(fuelStops)} />
         <Stat label="Overnight rests" value={String(restStops)} />
-        <Stat label="Pickup" value={`1 h — ${payload.trip.pickup_location}`} />
-        <Stat label="Dropoff" value={`1 h — ${payload.trip.dropoff_location}`} />
+        <Stat label="Total on-duty" value={`${hos_summary.total_on_duty_hours.toFixed(1)} h`} />
+        <Stat
+          label={logs.length > 1 ? "Daily log sheets" : "Daily log sheets"}
+          value={String(logs.length)}
+        />
         {restarts > 0 && <Stat label="34-hr restarts" value={String(restarts)} />}
-        {logs.length > 1 && <Stat label="Daily log sheets" value={String(logs.length)} />}
       </div>
     </section>
   );

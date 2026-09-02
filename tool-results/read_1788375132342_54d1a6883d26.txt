@@ -1,0 +1,1865 @@
+     1→You are a senior full-stack engineer, product designer, UX engineer,
+     2→QA engineer, and code reviewer.
+     3→
+     4→You are working on my EXISTING Spotter ELD Trip Planner project.
+     5→
+     6→IMPORTANT:
+     7→DO NOT immediately rebuild the application.
+     8→DO NOT throw away the existing implementation.
+     9→DO NOT create a second competing implementation.
+    10→
+    11→First understand the existing codebase completely.
+    12→Then audit it.
+    13→Then improve it systematically.
+    14→
+    15→The objective is to transform the current prototype into a polished,
+    16→professional, technically strong, assessment-ready product that looks like
+    17→it was built by a strong senior full-stack engineer.
+    18→
+    19→============================================================
+    20→1. PROJECT OBJECTIVE
+    21→============================================================
+    22→
+    23→We are building a truck-driver trip planning application.
+    24→
+    25→The application takes:
+    26→
+    27→1. Current Location
+    28→2. Pickup Location
+    29→3. Dropoff Location
+    30→4. Current Cycle Used (hours)
+    31→
+    32→and generates:
+    33→
+    34→1. A realistic interactive route map
+    35→2. An HOS-compliant trip schedule
+    36→3. Planned fuel/rest/break/pickup/dropoff stops
+    37→4. One or more daily ELD log sheets
+    38→5. Clear trip summary and compliance information
+    39→
+    40→The application is a DEMONSTRATION / ASSESSMENT PROJECT,
+    41→not a certified commercial ELD or legal-compliance product.
+    42→
+    43→The implementation must be deterministic, testable, explainable,
+    44→and visually polished.
+    45→
+    46→============================================================
+    47→2. FIRST TASK — FULL CODEBASE AUDIT
+    48→============================================================
+    49→
+    50→Before changing anything:
+    51→
+    52→Inspect the ENTIRE repository.
+    53→
+    54→Inspect:
+    55→
+    56→- package.json
+    57→- requirements.txt / pyproject.toml
+    58→- environment files
+    59→- frontend source
+    60→- backend source
+    61→- API services
+    62→- routing logic
+    63→- HOS logic
+    64→- ELD generation
+    65→- map implementation
+    66→- components
+    67→- CSS/Tailwind configuration
+    68→- assets
+    69→- tests
+    70→- configuration
+    71→- deployment files
+    72→- README
+    73→- documentation
+    74→
+    75→Understand the current architecture.
+    76→
+    77→Create an internal audit containing:
+    78→
+    79→A. What already works
+    80→B. What is broken
+    81→C. What is duplicated
+    82→D. What is unnecessarily complicated
+    83→E. What can be simplified
+    84→F. What should be preserved
+    85→G. What should be refactored
+    86→H. What is missing
+    87→I. UX problems
+    88→J. visual-design problems
+    89→K. accessibility problems
+    90→L. backend correctness risks
+    91→M. HOS calculation risks
+    92→N. API/security risks
+    93→O. testing gaps
+    94→P. deployment risks
+    95→
+    96→DO NOT make assumptions about the existing code.
+    97→
+    98→Use the actual repository as the source of truth.
+    99→
+   100→============================================================
+   101→3. GOLDEN RULE
+   102→============================================================
+   103→
+   104→Preserve working functionality.
+   105→
+   106→Improve the existing project incrementally.
+   107→
+   108→Do not rewrite a component merely because you would personally structure it
+   109→differently.
+   110→
+   111→Refactor only when there is a measurable benefit:
+   112→
+   113→- correctness
+   114→- maintainability
+   115→- performance
+   116→- UX
+   117→- accessibility
+   118→- reliability
+   119→- testability
+   120→- security
+   121→
+   122→Avoid unnecessary dependencies.
+   123→
+   124→Avoid overengineering.
+   125→
+   126→Avoid adding features merely to make the project larger.
+   127→
+   128→Every feature must have a purpose.
+   129→
+   130→============================================================
+   131→4. PRODUCT DIRECTION
+   132→============================================================
+   133→
+   134→The final product should feel like:
+   135→
+   136→"Professional logistics/HOS planning software"
+   137→
+   138→NOT:
+   139→
+   140→- college-project dashboard
+   141→- generic admin panel
+   142→- template website
+   143→- overly animated SaaS landing page
+   144→- AI-generated UI
+   145→- visually noisy dashboard
+   146→- collection of cards
+   147→
+   148→The interface should communicate:
+   149→
+   150→- reliability
+   151→- clarity
+   152→- operational usefulness
+   153→- compliance awareness
+   154→- confidence
+   155→- precision
+   156→
+   157→Prioritize information hierarchy over decoration.
+   158→
+   159→============================================================
+   160→5. UI/UX PRINCIPLES
+   161→============================================================
+   162→
+   163→Follow these principles throughout the application:
+   164→
+   165→1. Clear hierarchy
+   166→2. Strong visual grouping
+   167→3. Consistent spacing
+   168→4. Consistent typography
+   169→5. Consistent component behavior
+   170→6. Predictable interactions
+   171→7. Minimal cognitive load
+   172→8. Strong contrast
+   173→9. Accessible controls
+   174→10. Useful empty states
+   175→11. Useful loading states
+   176→12. Useful error states
+   177→13. Clear success states
+   178→14. No unnecessary animations
+   179→15. No visual clutter
+   180→16. No redundant information
+   181→
+   182→Every screen must answer:
+   183→
+   184→"What does the user need to know right now?"
+   185→
+   186→============================================================
+   187→6. VISUAL DESIGN SYSTEM
+   188→============================================================
+   189→
+   190→Create or refine a coherent design system.
+   191→
+   192→Use:
+   193→
+   194→- clean typography
+   195→- consistent spacing scale
+   196→- consistent border radius
+   197→- subtle borders
+   198→- restrained shadows
+   199→- clear section hierarchy
+   200→- professional cards
+   201→- consistent button styles
+   202→- consistent input styles
+   203→- consistent icon sizing
+   204→- consistent status indicators
+   205→
+   206→Use the project's existing primary branding where appropriate.
+   207→
+   208→Avoid excessive gradients.
+   209→
+   210→Avoid neon effects.
+   211→
+   212→Avoid excessive glassmorphism.
+   213→
+   214→Avoid excessive shadows.
+   215→
+   216→Avoid huge decorative elements that consume useful space.
+   217→
+   218→Avoid random colors.
+   219→
+   220→Colors must communicate meaning.
+   221→
+   222→For example:
+   223→
+   224→Driving
+   225→Rest
+   226→Break
+   227→On Duty
+   228→Fuel
+   229→Pickup
+   230→Dropoff
+   231→Warning
+   232→Error
+   233→Success
+   234→
+   235→must have consistent semantic treatment.
+   236→
+   237→Do not use color as the only method of communication.
+   238→
+   239→============================================================
+   240→7. APPLICATION INFORMATION ARCHITECTURE
+   241→============================================================
+   242→
+   243→Review the current page structure.
+   244→
+   245→If necessary, reorganize into a logical flow such as:
+   246→
+   247→------------------------------------------------------------
+   248→HEADER
+   249→------------------------------------------------------------
+   250→
+   251→Product identity
+   252→Trip status / reset / action controls
+   253→
+   254→------------------------------------------------------------
+   255→TRIP INPUT
+   256→------------------------------------------------------------
+   257→
+   258→Current Location
+   259→Pickup
+   260→Dropoff
+   261→Current Cycle Used
+   262→
+   263→Primary CTA:
+   264→PLAN TRIP
+   265→
+   266→Secondary:
+   267→Load Example / Clear
+   268→
+   269→------------------------------------------------------------
+   270→TRIP SUMMARY
+   271→------------------------------------------------------------
+   272→
+   273→Total Distance
+   274→Estimated Driving Time
+   275→Compliant Trip Duration
+   276→Arrival
+   277→Trip Days
+   278→Fuel Stops
+   279→Rest Stops
+   280→
+   281→------------------------------------------------------------
+   282→MAIN WORKSPACE
+   283→------------------------------------------------------------
+   284→
+   285→LEFT / MAIN:
+   286→Interactive Route Map
+   287→
+   288→RIGHT / SECONDARY:
+   289→Trip timeline / HOS summary
+   290→
+   291→------------------------------------------------------------
+   292→DETAILED SCHEDULE
+   293→------------------------------------------------------------
+   294→
+   295→Chronological events:
+   296→
+   297→Driving
+   298→Pickup
+   299→Fuel
+   300→Break
+   301→Rest
+   302→Dropoff
+   303→34-hour restart
+   304→
+   305→Each event should explain WHY it exists.
+   306→
+   307→------------------------------------------------------------
+   308→DAILY ELD LOGS
+   309→------------------------------------------------------------
+   310→
+   311→Day 1
+   312→Day 2
+   313→Day 3
+   314→...
+   315→
+   316→Each log should clearly resemble a real driver daily log.
+   317→
+   318→------------------------------------------------------------
+   319→ASSUMPTIONS / WARNINGS
+   320→------------------------------------------------------------
+   321→
+   322→Clearly disclose modeled assumptions.
+   323→
+   324→------------------------------------------------------------
+   325→FOOTER
+   326→------------------------------------------------------------
+   327→
+   328→Assessment/demo disclaimer and relevant project information.
+   329→
+   330→Do NOT blindly implement this exact structure if the existing product has
+   331→a better structure.
+   332→
+   333→Use it as an information architecture reference.
+   334→
+   335→============================================================
+   336→8. INPUT EXPERIENCE
+   337→============================================================
+   338→
+   339→Make the trip form excellent.
+   340→
+   341→Requirements:
+   342→
+   343→- clear labels
+   344→- helpful placeholders
+   345→- examples
+   346→- correct input types
+   347→- validation
+   348→- inline validation
+   349→- clear errors
+   350→- keyboard navigation
+   351→- accessible labels
+   352→- loading state
+   353→- disabled submit while processing
+   354→- prevent accidental duplicate requests
+   355→
+   356→Current Cycle Used:
+   357→
+   358→- numeric input
+   359→- min = 0
+   360→- max = 70
+   361→- sensible step
+   362→- clear unit indication
+   363→
+   364→Do not make users wonder what values mean.
+   365→
+   366→For location fields:
+   367→
+   368→Show:
+   369→
+   370→Current location
+   371→Pickup location
+   372→Dropoff location
+   373→
+   374→Use autocomplete only if it genuinely improves the implementation.
+   375→
+   376→Do not add unnecessary complexity.
+   377→
+   378→============================================================
+   379→9. LOADING EXPERIENCE
+   380→============================================================
+   381→
+   382→Never leave the user staring at a frozen screen.
+   383→
+   384→When planning:
+   385→
+   386→Show meaningful progress.
+   387→
+   388→Example:
+   389→
+   390→Planning your trip
+   391→
+   392→1. Resolving locations
+   393→2. Calculating route
+   394→3. Applying HOS rules
+   395→4. Building daily logs
+   396→5. Preparing results
+   397→
+   398→Do not fake progress percentages.
+   399→
+   400→Progress indicators must represent actual stages where possible.
+   401→
+   402→============================================================
+   403→10. ERROR HANDLING
+   404→============================================================
+   405→
+   406→Every failure must produce a useful user-facing message.
+   407→
+   408→Handle:
+   409→
+   410→- invalid location
+   411→- location not found
+   412→- routing failure
+   413→- API failure
+   414→- timeout
+   415→- malformed backend response
+   416→- invalid cycle hours
+   417→- empty response
+   418→- unexpected server error
+   419→- network failure
+   420→
+   421→Never show:
+   422→
+   423→"Something went wrong."
+   424→
+   425→alone.
+   426→
+   427→Instead explain:
+   428→
+   429→WHAT happened
+   430→WHY it may have happened
+   431→WHAT the user can do
+   432→
+   433→Example:
+   434→
+   435→"Pickup location could not be found. Try adding the city and state,
+   436→for example: Indianapolis, IN."
+   437→
+   438→Never expose:
+   439→
+   440→- stack traces
+   441→- API keys
+   442→- internal server paths
+   443→- raw exceptions
+   444→- sensitive environment variables
+   445→
+   446→============================================================
+   447→11. RESULTS DASHBOARD
+   448→============================================================
+   449→
+   450→The result page is the most important screen.
+   451→
+   452→It should immediately communicate:
+   453→
+   454→"Your trip has been planned."
+   455→
+   456→Show a compact summary first.
+   457→
+   458→Example:
+   459→
+   460→2,184 mi
+   461→39h 42m driving
+   462→58h 12m trip duration
+   463→3 log days
+   464→2 fuel stops
+   465→2 rest periods
+   466→
+   467→Then show detailed information.
+   468→
+   469→Do not make every metric a giant card.
+   470→
+   471→Use hierarchy.
+   472→
+   473→Most important information gets strongest visual emphasis.
+   474→
+   475→============================================================
+   476→12. ROUTE MAP
+   477→============================================================
+   478→
+   479→The map must be operationally useful.
+   480→
+   481→Display:
+   482→
+   483→- current location
+   484→- pickup
+   485→- dropoff
+   486→- fuel stops
+   487→- rest stops
+   488→- mandatory breaks
+   489→- 34-hour restart if applicable
+   490→
+   491→Route should be clearly visible.
+   492→
+   493→Use distinct but restrained markers.
+   494→
+   495→Every generated stop must have:
+   496→
+   497→- type
+   498→- reason
+   499→- approximate location
+   500→- timing
+   501→- duration where relevant
+   502→
+   503→Clicking a stop should provide useful information.
+   504→
+   505→Avoid random decorative map markers.
+   506→
+   507→Fit map bounds automatically.
+   508→
+   509→Do not make the route visually overpower the rest of the application.
+   510→
+   511→============================================================
+   512→13. HOS ENGINE — CRITICAL
+   513→============================================================
+   514→
+   515→The HOS engine is the most important technical component.
+   516→
+   517→Do NOT implement HOS using scattered frontend calculations.
+   518→
+   519→The backend must be the source of truth.
+   520→
+   521→Use a deterministic simulation/state-machine architecture.
+   522→
+   523→Keep HOS calculations independent from:
+   524→
+   525→- HTTP
+   526→- Django views
+   527→- database
+   528→- frontend
+   529→- UI
+   530→- wall clock
+   531→
+   532→Prefer pure functions/services.
+   533→
+   534→The engine should accept normalized trip data and produce a deterministic
+   535→schedule.
+   536→
+   537→============================================================
+   538→14. HOS RULES
+   539→============================================================
+   540→
+   541→Model the assessment's specified property-carrying driver scenario:
+   542→
+   543→- 70-hour / 8-day cycle
+   544→- 11-hour driving limit
+   545→- 14-hour window
+   546→- 30-minute break after 8 cumulative driving hours
+   547→- 10 consecutive hours off duty for the modeled daily reset
+   548→- 34-hour restart when the modeled cycle is exhausted
+   549→- pickup = 60 minutes on duty
+   550→- dropoff = 60 minutes on duty
+   551→- fuel stop = 30 minutes on duty
+   552→- fuel planning at least every 1,000 route miles
+   553→- no sleeper split in this version
+   554→- no adverse-driving exception
+   555→- no team driving
+   556→- no short-haul exception
+   557→
+   558→Keep these assumptions centralized.
+   559→
+   560→DO NOT duplicate constants across multiple files.
+   561→
+   562→Example:
+   563→
+   564→HOS_RULES = {
+   565→    driving_limit_minutes: 660,
+   566→    duty_window_minutes: 840,
+   567→    break_threshold_minutes: 480,
+   568→    break_duration_minutes: 30,
+   569→    daily_reset_minutes: 600,
+   570→    cycle_limit_minutes: 4200,
+   571→    restart_minutes: 2040,
+   572→    fuel_interval_miles: 1000,
+   573→    pickup_duration_minutes: 60,
+   574→    dropoff_duration_minutes: 60,
+   575→    fuel_duration_minutes: 30
+   576→}
+   577→
+   578→Use descriptive names.
+   579→
+   580→============================================================
+   581→15. HOS SIMULATION STRATEGY
+   582→============================================================
+   583→
+   584→Implement the schedule as a simulation.
+   585→
+   586→Track state such as:
+   587→
+   588→- elapsed time
+   589→- driving time in current window
+   590→- duty time/window
+   591→- cumulative driving since break
+   592→- cycle hours used
+   593→- miles since fuel
+   594→- current route position
+   595→- current trip leg
+   596→- current status
+   597→
+   598→At every transition, determine the next legal event.
+   599→
+   600→DO NOT simulate minute-by-minute unless there is a compelling reason.
+   601→
+   602→Use event-based simulation.
+   603→
+   604→Calculate how much driving can safely occur before the next constraint.
+   605→
+   606→Possible next boundaries:
+   607→
+   608→- destination
+   609→- pickup
+   610→- dropoff
+   611→- fuel threshold
+   612→- 8-hour break threshold
+   613→- 11-hour driving threshold
+   614→- 14-hour window expiry
+   615→- cycle exhaustion
+   616→
+   617→Advance directly to the next boundary.
+   618→
+   619→This makes the engine efficient and deterministic.
+   620→
+   621→============================================================
+   622→16. RULE PRIORITY
+   623→============================================================
+   624→
+   625→When multiple constraints can trigger, establish explicit priority.
+   626→
+   627→The priority must be documented in code and tested.
+   628→
+   629→Never rely on accidental if/else ordering.
+   630→
+   631→The engine must never:
+   632→
+   633→- exceed 11 driving hours
+   634→- exceed the modeled 14-hour window
+   635→- exceed the modeled 70-hour cycle
+   636→- drive beyond a required break
+   637→- miss a required fuel stop
+   638→- create overlapping events
+   639→- create negative-duration events
+   640→- create gaps in daily logs
+   641→
+   642→============================================================
+   643→17. 30-MINUTE BREAK LOGIC
+   644→============================================================
+   645→
+   646→Implement carefully.
+   647→
+   648→A qualifying non-driving period of at least 30 minutes can satisfy the modeled
+   649→break requirement.
+   650→
+   651→Pickup, fuel, or another qualifying non-driving event can therefore satisfy
+   652→the break requirement if the event duration qualifies.
+   653→
+   654→Do not incorrectly insert another 30-minute break immediately afterward.
+   655→
+   656→Maintain an explicit break accumulator.
+   657→
+   658→Two separate 15-minute stops must NOT automatically be treated as one
+   659→30-minute qualifying break.
+   660→
+   661→Write tests for this.
+   662→
+   663→============================================================
+   664→18. FUEL STOP LOGIC
+   665→============================================================
+   666→
+   667→Fuel planning must be route-distance based.
+   668→
+   669→Track:
+   670→
+   671→miles_since_fuel
+   672→
+   673→When the threshold approaches:
+   674→
+   675→schedule fuel before exceeding the configured interval.
+   676→
+   677→Fuel should reset:
+   678→
+   679→miles_since_fuel = 0
+   680→
+   681→Fuel stops must appear consistently in:
+   682→
+   683→- backend schedule
+   684→- map
+   685→- timeline
+   686→- daily logs
+   687→- summary counts
+   688→
+   689→Never create a fuel stop in one subsystem but forget it in another.
+   690→
+   691→============================================================
+   692→19. DAILY LOG GENERATION
+   693→============================================================
+   694→
+   695→Daily log generation must be derived from the canonical HOS event stream.
+   696→
+   697→Do NOT independently calculate the daily log.
+   698→
+   699→The pipeline should be:
+   700→
+   701→Trip input
+   702→    ↓
+   703→Route
+   704→    ↓
+   705→HOS simulation
+   706→    ↓
+   707→Canonical event timeline
+   708→    ↓
+   709→Daily log builder
+   710→    ↓
+   711→Frontend renderer
+   712→
+   713→This prevents inconsistent calculations.
+   714→
+   715→============================================================
+   716→20. 24-HOUR DAILY LOG INVARIANT
+   717→============================================================
+   718→
+   719→For every day:
+   720→
+   721→TOTAL EVENT DURATION MUST EQUAL EXACTLY:
+   722→
+   723→1440 minutes
+   724→
+   725→Events must be:
+   726→
+   727→- contiguous
+   728→- non-overlapping
+   729→- bounded from 00:00 to 24:00
+   730→
+   731→If an event crosses midnight:
+   732→
+   733→split it.
+   734→
+   735→Example:
+   736→
+   737→22:00 → 26:00
+   738→
+   739→becomes:
+   740→
+   741→Day N:
+   742→22:00 → 24:00
+   743→
+   744→Day N+1:
+   745→00:00 → 02:00
+   746→
+   747→Never allow a day with:
+   748→
+   749→1439 minutes
+   750→1441 minutes
+   751→gaps
+   752→overlaps
+   753→
+   754→Write automated invariant tests.
+   755→
+   756→============================================================
+   757→21. ELD LOG VISUALIZATION
+   758→============================================================
+   759→
+   760→The ELD log is NOT just another timeline card.
+   761→
+   762→It should visually communicate the familiar daily-log concept.
+   763→
+   764→Use SVG or the existing appropriate rendering approach.
+   765→
+   766→Include:
+   767→
+   768→- 24-hour horizontal axis
+   769→- four duty rows
+   770→- Off Duty
+   771→- Sleeper Berth
+   772→- Driving
+   773→- On Duty Not Driving
+   774→- hour markers
+   775→- 15-minute markers where practical
+   776→- duty lines
+   777→- transition connectors
+   778→- daily totals
+   779→- remarks
+   780→
+   781→Keep it clean and readable.
+   782→
+   783→Do not make the ELD graph microscopic.
+   784→
+   785→On desktop, it should be immediately understandable.
+   786→
+   787→Allow multiple days to be navigated cleanly.
+   788→
+   789→============================================================
+   790→22. ELD LOG ACCURACY
+   791→============================================================
+   792→
+   793→The visual log must be generated from the exact backend timeline.
+   794→
+   795→Never independently estimate line positions in the frontend.
+   796→
+   797→For every segment:
+   798→
+   799→start
+   800→end
+   801→status
+   802→
+   803→must correspond exactly to backend data.
+   804→
+   805→Use one canonical coordinate conversion:
+   806→
+   807→hour → x position
+   808→
+   809→Do not scatter mathematical conversions throughout components.
+   810→
+   811→============================================================
+   812→23. TIMELINE
+   813→============================================================
+   814→
+   815→Create a clear chronological timeline.
+   816→
+   817→Each event should show:
+   818→
+   819→- time
+   820→- duration
+   821→- status
+   822→- location
+   823→- reason
+   824→
+   825→Examples:
+   826→
+   827→08:00–14:20
+   828→Driving
+   829→Chicago → Indianapolis
+   830→
+   831→14:20–15:20
+   832→Pickup
+   833→Indianapolis, IN
+   834→
+   835→15:20–15:50
+   836→Fuel / Break
+   837→Required fuel stop
+   838→
+   839→15:50–23:50
+   840→Driving
+   841→
+   842→23:50–09:50
+   843→10-hour rest
+   844→
+   845→This should be easy to scan.
+   846→
+   847→Avoid excessive text.
+   848→
+   849→============================================================
+   850→24. EXPLAINABILITY
+   851→============================================================
+   852→
+   853→This is important.
+   854→
+   855→The application should explain WHY the scheduler inserted events.
+   856→
+   857→Examples:
+   858→
+   859→"30-minute break required after 8 cumulative driving hours."
+   860→
+   861→"10-hour rest required because the 14-hour duty window expired."
+   862→
+   863→"Fuel stop scheduled before the 1,000-mile threshold."
+   864→
+   865→"34-hour restart required because the modeled 70-hour cycle was exhausted."
+   866→
+   867→The user should never see unexplained stops.
+   868→
+   869→============================================================
+   870→25. WARNINGS VS ERRORS
+   871→============================================================
+   872→
+   873→Distinguish:
+   874→
+   875→ERROR:
+   876→The trip cannot be calculated.
+   877→
+   878→WARNING:
+   879→The trip can be calculated but has an important assumption/limitation.
+   880→
+   881→INFO:
+   882→Normal planning information.
+   883→
+   884→SUCCESS:
+   885→Trip successfully planned.
+   886→
+   887→Never use red for ordinary warnings.
+   888→
+   889→Never use green for everything.
+   890→
+   891→Use semantic status consistently.
+   892→
+   893→============================================================
+   894→26. ASSUMPTIONS PANEL
+   895→============================================================
+   896→
+   897→Include a concise "Calculation assumptions" section.
+   898→
+   899→Do not hide important assumptions.
+   900→
+   901→Clearly communicate things such as:
+   902→
+   903→- property-carrying driver
+   904→- 70/8 cycle
+   905→- modeled 11/14-hour limits
+   906→- no sleeper split
+   907→- no adverse conditions exception
+   908→- modeled fuel-stop behavior
+   909→- average-speed assumption if the project uses one
+   910→- routing provider limitations
+   911→- generated stop locations are planned/interpolated where applicable
+   912→
+   913→Keep this section collapsed by default if it is too verbose.
+   914→
+   915→============================================================
+   916→27. ACCESSIBILITY
+   917→============================================================
+   918→
+   919→Audit the entire frontend for accessibility.
+   920→
+   921→Check:
+   922→
+   923→- semantic HTML
+   924→- label/input association
+   925→- keyboard navigation
+   926→- visible focus
+   927→- sufficient contrast
+   928→- button names
+   929→- icon-only button labels
+   930→- ARIA only where necessary
+   931→- screen-reader-friendly status messages
+   932→- map controls
+   933→- form errors
+   934→- loading states
+   935→
+   936→Do not add ARIA unnecessarily.
+   937→
+   938→============================================================
+   939→28. RESPONSIVE DESIGN
+   940→============================================================
+   941→
+   942→The primary target is desktop/laptop assessment/demo use.
+   943→
+   944→However, the application must not break on:
+   945→
+   946→- 1440px
+   947→- 1280px
+   948→- 1024px
+   949→- tablet-sized widths
+   950→
+   951→At smaller widths:
+   952→
+   953→- stack panels
+   954→- preserve map usability
+   955→- allow horizontal scrolling for the ELD graph if genuinely necessary
+   956→- prevent text overflow
+   957→- preserve readable controls
+   958→
+   959→Do not spend excessive time creating a completely separate mobile product.
+   960→
+   961→============================================================
+   962→29. PERFORMANCE
+   963→============================================================
+   964→
+   965→Audit performance.
+   966→
+   967→Avoid:
+   968→
+   969→- unnecessary rerenders
+   970→- duplicated API calls
+   971→- expensive calculations in React render
+   972→- unnecessary map recreation
+   973→- unnecessary SVG recreation
+   974→- huge dependencies
+   975→- repeated geocoding
+   976→- repeated route calls
+   977→
+   978→Use memoization only where it actually helps.
+   979→
+   980→Do not optimize prematurely.
+   981→
+   982→Measure first where practical.
+   983→
+   984→============================================================
+   985→30. API DESIGN
+   986→============================================================
+   987→
+   988→Keep backend APIs clean and predictable.
+   989→
+   990→Use:
+   991→
+   992→POST /api/plan-trip/
+   993→
+   994→or preserve the existing endpoint if already established.
+   995→
+   996→Validate all inputs server-side.
+   997→
+   998→Never trust frontend validation.
+   999→
+  1000→Return structured errors.
+  1001→
+  1002→Example:
+  1003→
+  1004→{
+  1005→  "error": {
+  1006→    "code": "LOCATION_NOT_FOUND",
+  1007→    "message": "Pickup location could not be resolved.",
+  1008→    "details": {}
+  1009→  }
+  1010→}
+  1011→
+  1012→Do not leak implementation details.
+  1013→
+  1014→============================================================
+  1015→31. BACKEND ARCHITECTURE
+  1016→============================================================
+  1017→
+  1018→Prefer separation:
+  1019→
+  1020→API layer
+  1021→    ↓
+  1022→Validation
+  1023→    ↓
+  1024→Location/geocoding service
+  1025→    ↓
+  1026→Routing service
+  1027→    ↓
+  1028→HOS engine
+  1029→    ↓
+  1030→Daily-log builder
+  1031→    ↓
+  1032→Serializer/response
+  1033→
+  1034→Do not place the HOS engine inside a Django view.
+  1035→
+  1036→Do not place business logic inside serializers unless appropriate.
+  1037→
+  1038→Do not put API calls inside the HOS engine.
+  1039→
+  1040→============================================================
+  1041→32. ROUTING
+  1042→============================================================
+  1043→
+  1044→Inspect the current routing provider.
+  1045→
+  1046→Preserve the existing provider if it is working.
+  1047→
+  1048→Ensure:
+  1049→
+  1050→- current → pickup → dropoff ordering
+  1051→- route geometry
+  1052→- per-leg distance
+  1053→- total distance
+  1054→- route errors
+  1055→- timeouts
+  1056→- provider failures
+  1057→
+  1058→If fuel/rest locations are interpolated rather than confirmed truck stops,
+  1059→clearly label them as planned locations.
+  1060→
+  1061→Never pretend an interpolated point is an actual truck stop.
+  1062→
+  1063→============================================================
+  1064→33. SECURITY
+  1065→============================================================
+  1066→
+  1067→Audit:
+  1068→
+  1069→- environment variables
+  1070→- API keys
+  1071→- CORS
+  1072→- DEBUG configuration
+  1073→- allowed hosts
+  1074→- error messages
+  1075→- frontend exposure of secrets
+  1076→
+  1077→No API key may be exposed to the browser unless it is explicitly intended
+  1078→to be public.
+  1079→
+  1080→Do not commit:
+  1081→
+  1082→.env
+  1083→secret keys
+  1084→provider credentials
+  1085→
+  1086→Review gitignore.
+  1087→
+  1088→============================================================
+  1089→34. TESTING STRATEGY
+  1090→============================================================
+  1091→
+  1092→Create a strong automated test suite.
+  1093→
+  1094→At minimum test:
+  1095→
+  1096→1. Short trip
+  1097→2. Normal multi-day trip
+  1098→3. 8-hour break
+  1099→4. Pickup satisfying break
+  1100→5. Fuel satisfying break
+  1101→6. 11-hour driving limit
+  1102→7. 14-hour window
+  1103→8. 10-hour rest
+  1104→9. 70-hour cycle
+  1105→10. 34-hour restart
+  1106→11. Fuel threshold
+  1107→12. Event crossing midnight
+  1108→13. Multiple calendar days
+  1109→14. Exact 1440-minute daily logs
+  1110→15. No gaps
+  1111→16. No overlaps
+  1112→17. Zero-distance/very short leg handling
+  1113→18. Invalid input
+  1114→19. location failure
+  1115→20. routing failure
+  1116→
+  1117→============================================================
+  1118→35. PROPERTY/INVARIANT TESTS
+  1119→============================================================
+  1120→
+  1121→Add invariant-style tests.
+  1122→
+  1123→For every generated trip:
+  1124→
+  1125→ASSERT:
+  1126→
+  1127→all event durations >= 0
+  1128→
+  1129→events are chronologically ordered
+  1130→
+  1131→no overlaps
+  1132→
+  1133→daily totals = 1440 minutes
+  1134→
+  1135→driving <= 11 hours between qualifying resets
+  1136→
+  1137→14-hour window is never violated
+  1138→
+  1139→cycle usage never silently exceeds configured limit
+  1140→
+  1141→fuel threshold is never exceeded while fuel is required
+  1142→
+  1143→all route miles are accounted for
+  1144→
+  1145→pickup occurs exactly once
+  1146→
+  1147→dropoff occurs exactly once
+  1148→
+  1149→daily log statuses match canonical events
+  1150→
+  1151→frontend receives valid response structure
+  1152→
+  1153→============================================================
+  1154→36. FRONTEND TESTING
+  1155→============================================================
+  1156→
+  1157→Test:
+  1158→
+  1159→- form validation
+  1160→- submit
+  1161→- loading
+  1162→- API success
+  1163→- API error
+  1164→- map rendering
+  1165→- timeline rendering
+  1166→- ELD rendering
+  1167→- empty state
+  1168→- warning state
+  1169→
+  1170→Do not test implementation details unnecessarily.
+  1171→
+  1172→Test user-visible behavior.
+  1173→
+  1174→============================================================
+  1175→37. SAMPLE SCENARIOS
+  1176→============================================================
+  1177→
+  1178→Create several deterministic sample trips.
+  1179→
+  1180→Example:
+  1181→
+  1182→A:
+  1183→Chicago → Indianapolis → Nashville
+  1184→
+  1185→B:
+  1186→Chicago → Dallas → Los Angeles
+  1187→
+  1188→C:
+  1189→New York → Pittsburgh → Los Angeles
+  1190→
+  1191→D:
+  1192→Seattle → San Francisco → Phoenix
+  1193→
+  1194→E:
+  1195→Short trip
+  1196→
+  1197→F:
+  1198→High current cycle usage
+  1199→
+  1200→G:
+  1201→Long trip crossing multiple days
+  1202→
+  1203→These should allow quick manual QA.
+  1204→
+  1205→============================================================
+  1206→38. DEMO MODE
+  1207→============================================================
+  1208→
+  1209→If the existing application has sample-trip functionality,
+  1210→make it polished.
+  1211→
+  1212→Provide a few clearly labeled examples.
+  1213→
+  1214→Example:
+  1215→
+  1216→"Short trip"
+  1217→"Multi-day trip"
+  1218→"High cycle usage"
+  1219→"Long-haul trip"
+  1220→
+  1221→Selecting an example should populate the form.
+  1222→
+  1223→Do not silently submit unless the existing UX intentionally supports it.
+  1224→
+  1225→============================================================
+  1226→39. EMPTY STATE
+  1227→============================================================
+  1228→
+  1229→Before a trip is planned, do not show an empty dashboard full of fake cards.
+  1230→
+  1231→Show a strong empty state:
+  1232→
+  1233→Plan your next trip
+  1234→
+  1235→Enter your current location, pickup, dropoff and current cycle usage
+  1236→to generate a compliant trip plan and daily ELD logs.
+  1237→
+  1238→Include a simple visual or map placeholder.
+  1239→
+  1240→============================================================
+  1241→40. RESULT STATE
+  1242→============================================================
+  1243→
+  1244→After successful planning:
+  1245→
+  1246→Show a strong success state.
+  1247→
+  1248→Example:
+  1249→
+  1250→Trip planned successfully
+  1251→
+  1252→Then:
+  1253→
+  1254→Summary
+  1255→Route
+  1256→Schedule
+  1257→Daily logs
+  1258→Assumptions
+  1259→
+  1260→Do not overwhelm the user with everything simultaneously.
+  1261→
+  1262→Use progressive disclosure.
+  1263→
+  1264→============================================================
+  1265→41. RESET / NEW TRIP
+  1266→============================================================
+  1267→
+  1268→Provide a clear:
+  1269→
+  1270→"Plan New Trip"
+  1271→
+  1272→action.
+  1273→
+  1274→It should reset the application predictably.
+  1275→
+  1276→Do not force the user to manually clear every field.
+  1277→
+  1278→============================================================
+  1279→42. MICROINTERACTIONS
+  1280→============================================================
+  1281→
+  1282→Use subtle interaction feedback:
+  1283→
+  1284→- button hover
+  1285→- input focus
+  1286→- card hover only when meaningful
+  1287→- smooth expansion/collapse
+  1288→- map marker interaction
+  1289→- timeline selection
+  1290→
+  1291→Avoid:
+  1292→
+  1293→- excessive bouncing
+  1294→- huge animations
+  1295→- loading spinners everywhere
+  1296→- animation on every card
+  1297→- distracting motion
+  1298→
+  1299→The application should feel fast.
+  1300→
+  1301→============================================================
+  1302→43. CONTENT QUALITY
+  1303→============================================================
+  1304→
+  1305→Audit ALL visible text.
+  1306→
+  1307→Fix:
+  1308→
+  1309→- awkward wording
+  1310→- inconsistent terminology
+  1311→- grammar
+  1312→- unnecessary technical jargon
+  1313→- inconsistent capitalization
+  1314→- unclear labels
+  1315→- placeholder-looking text
+  1316→- excessive paragraphs
+  1317→
+  1318→Use consistent terminology.
+  1319→
+  1320→For example, choose one:
+  1321→
+  1322→"Dropoff"
+  1323→
+  1324→or
+  1325→
+  1326→"Drop-off"
+  1327→
+  1328→and use it consistently.
+  1329→
+  1330→Do the same for:
+  1331→
+  1332→Pickup
+  1333→Fuel stop
+  1334→Rest
+  1335→Break
+  1336→Driving
+  1337→On Duty
+  1338→Off Duty
+  1339→Cycle Used
+  1340→
+  1341→============================================================
+  1342→44. NO FAKE DATA
+  1343→============================================================
+  1344→
+  1345→Never display fake metrics.
+  1346→
+  1347→Do not hardcode:
+  1348→
+  1349→distance
+  1350→arrival
+  1351→hours
+  1352→fuel counts
+  1353→rest counts
+  1354→compliance status
+  1355→
+  1356→unless they are clearly demo/sample values.
+  1357→
+  1358→Everything on the results screen must derive from the actual trip calculation.
+  1359→
+  1360→============================================================
+  1361→45. NO CONTRADICTORY INFORMATION
+  1362→============================================================
+  1363→
+  1364→Perform a consistency audit.
+  1365→
+  1366→The following must agree:
+  1367→
+  1368→Map
+  1369→    ↕
+  1370→Timeline
+  1371→    ↕
+  1372→Summary
+  1373→    ↕
+  1374→Daily logs
+  1375→    ↕
+  1376→Backend events
+  1377→
+  1378→If the map says 2 fuel stops,
+  1379→the timeline must contain 2 fuel events,
+  1380→and the summary must say 2.
+  1381→
+  1382→If the timeline says 10-hour rest,
+  1383→the daily log must show that rest.
+  1384→
+  1385→There must be ONE source of truth.
+  1386→
+  1387→============================================================
+  1388→46. CODE QUALITY
+  1389→============================================================
+  1390→
+  1391→Clean up:
+  1392→
+  1393→- dead code
+  1394→- unused imports
+  1395→- duplicated logic
+  1396→- magic numbers
+  1397→- inconsistent naming
+  1398→- console logs
+  1399→- debugging code
+  1400→- commented-out old implementations
+  1401→- duplicated components
+  1402→- unnecessary abstractions
+  1403→
+  1404→Use clear names.
+  1405→
+  1406→Prefer small understandable functions.
+  1407→
+  1408→Avoid giant components.
+  1409→
+  1410→Avoid giant backend functions.
+  1411→
+  1412→============================================================
+  1413→47. TYPES
+  1414→============================================================
+  1415→
+  1416→If TypeScript is already used:
+  1417→
+  1418→Create accurate types/interfaces for:
+  1419→
+  1420→TripInput
+  1421→Route
+  1422→Waypoint
+  1423→Stop
+  1424→HOS event
+  1425→TimelineEvent
+  1426→DailyLog
+  1427→DailyLogSegment
+  1428→DailyTotals
+  1429→TripSummary
+  1430→Warning
+  1431→APIError
+  1432→
+  1433→Do not use `any` unnecessarily.
+  1434→
+  1435→If JavaScript is used, do not migrate the entire project to TypeScript
+  1436→unless there is a clear benefit and the existing project can safely support it.
+  1437→
+  1438→============================================================
+  1439→48. STATE MANAGEMENT
+  1440→============================================================
+  1441→
+  1442→Keep state simple.
+  1443→
+  1444→Do not introduce Redux/Zustand/etc. unless the existing application genuinely
+  1445→requires it.
+  1446→
+  1447→For a single-trip workflow, local React state/context may be sufficient.
+  1448→
+  1449→Avoid global state for data that only one screen needs.
+  1450→
+  1451→============================================================
+  1452→49. DOCUMENTATION
+  1453→============================================================
+  1454→
+  1455→Rewrite the README professionally.
+  1456→
+  1457→README should include:
+  1458→
+  1459→- project overview
+  1460→- features
+  1461→- architecture
+  1462→- tech stack
+  1463→- setup
+  1464→- environment variables
+  1465→- API
+  1466→- HOS assumptions
+  1467→- testing
+  1468→- deployment
+  1469→- known limitations
+  1470→- screenshots
+  1471→- demo link if available
+  1472→
+  1473→Include an architecture diagram.
+  1474→
+  1475→Include a clear disclaimer:
+  1476→
+  1477→"This project is a demonstration/assessment planner and is not a certified
+  1478→ELD or legal-compliance product."
+  1479→
+  1480→============================================================
+  1481→50. PROJECT PRESENTATION
+  1482→============================================================
+  1483→
+  1484→The GitHub repository should look professional.
+  1485→
+  1486→Check:
+  1487→
+  1488→- repository name
+  1489→- README
+  1490→- screenshots
+  1491→- architecture
+  1492→- clean commit history where practical
+  1493→- .gitignore
+  1494→- environment example
+  1495→- no secrets
+  1496→- no unnecessary binaries
+  1497→- no node_modules
+  1498→- no virtual environments
+  1499→
+  1500→Add:
+  1501→
+  1502→.env.example
+  1503→
+  1504→rather than committing real credentials.
+  1505→
+  1506→============================================================
+  1507→51. DEPLOYMENT
+  1508→============================================================
+  1509→
+  1510→Audit the existing deployment.
+  1511→
+  1512→Ensure:
+  1513→
+  1514→Frontend:
+  1515→- production build works
+  1516→- environment variables are correct
+  1517→- API URL is correct
+  1518→
+  1519→Backend:
+  1520→- production settings
+  1521→- CORS
+  1522→- allowed hosts
+  1523→- secret key
+  1524→- provider key
+  1525→- migrations if needed
+  1526→- static files
+  1527→- health endpoint
+  1528→
+  1529→Test the deployed API and frontend.
+  1530→
+  1531→Do not claim deployment is working until verified.
+  1532→
+  1533→============================================================
+  1534→52. VISUAL QA
+  1535→============================================================
+  1536→
+  1537→After implementation, inspect the UI like a senior product designer.
+  1538→
+  1539→Check:
+  1540→
+  1541→- alignment
+  1542→- spacing
+  1543→- hierarchy
+  1544→- typography
+  1545→- button consistency
+  1546→- input consistency
+  1547→- card consistency
+  1548→- map proportions
+  1549→- ELD readability
+  1550→- mobile/tablet behavior
+  1551→- empty states
+  1552→- error states
+  1553→- loading states
+  1554→
+  1555→Ask:
+  1556→
+  1557→"Would this look credible in a technical interview?"
+  1558→
+  1559→If not, improve it.
+  1560→
+  1561→============================================================
+  1562→53. SENIOR ENGINEER REVIEW
+  1563→============================================================
+  1564→
+  1565→After implementation, perform another review.
+  1566→
+  1567→Pretend you are interviewing the developer who built this.
+  1568→
+  1569→Identify:
+  1570→
+  1571→- weak architectural decisions
+  1572→- duplicated logic
+  1573→- hidden bugs
+  1574→- edge cases
+  1575→- misleading UI
+  1576→- performance issues
+  1577→- security issues
+  1578→- accessibility issues
+  1579→- HOS calculation risks
+  1580→
+  1581→Fix them.
+  1582→
+  1583→============================================================
+  1584→54. DO NOT ADD UNNECESSARY FEATURES
+  1585→============================================================
+  1586→
+  1587→Do NOT add:
+  1588→
+  1589→- authentication
+  1590→- social login
+  1591→- user profiles
+  1592→- chatbots
+  1593→- AI assistant
+  1594→- unnecessary database
+  1595→- payments
+  1596→- notifications
+  1597→- complex analytics
+  1598→- team-driver support
+  1599→- sleeper split
+  1600→- unnecessary admin dashboard
+  1601→- unnecessary animations
+  1602→
+  1603→unless the existing project already depends on them and removing them would
+  1604→break the application.
+  1605→
+  1606→This project should be strong because it is WELL ENGINEERED,
+  1607→not because it has hundreds of features.
+  1608→
+  1609→============================================================
+  1610→55. IMPLEMENTATION ORDER
+  1611→============================================================
+  1612→
+  1613→Work in this exact sequence.
+  1614→
+  1615→PHASE 1
+  1616→Repository audit.
+  1617→
+  1618→PHASE 2
+  1619→Architecture and data-flow audit.
+  1620→
+  1621→PHASE 3
+  1622→Backend/HOS correctness.
+  1623→
+  1624→PHASE 4
+  1625→Daily-log correctness.
+  1626→
+  1627→PHASE 5
+  1628→API validation/error handling.
+  1629→
+  1630→PHASE 6
+  1631→Frontend information architecture.
+  1632→
+  1633→PHASE 7
+  1634→UI design system.
+  1635→
+  1636→PHASE 8
+  1637→Map UX.
+  1638→
+  1639→PHASE 9
+  1640→Timeline UX.
+  1641→
+  1642→PHASE 10
+  1643→ELD visualization.
+  1644→
+  1645→PHASE 11
+  1646→Loading/error/empty states.
+  1647→
+  1648→PHASE 12
+  1649→Accessibility.
+  1650→
+  1651→PHASE 13
+  1652→Performance.
+  1653→
+  1654→PHASE 14
+  1655→Automated tests.
+  1656→
+  1657→PHASE 15
+  1658→README/documentation.
+  1659→
+  1660→PHASE 16
+  1661→Production/deployment verification.
+  1662→
+  1663→PHASE 17
+  1664→Final senior-engineer review.
+  1665→
+  1666→============================================================
+  1667→56. IMPORTANT WORKFLOW RULE
+  1668→============================================================
+  1669→
+  1670→Do NOT make hundreds of changes at once.
+  1671→
+  1672→For each phase:
+  1673→
+  1674→1. Inspect
+  1675→2. Explain what is wrong
+  1676→3. Make the smallest appropriate changes
+  1677→4. Run tests/build
+  1678→5. Verify
+  1679→6. Continue
+  1680→
+  1681→Never continue after introducing a broken build.
+  1682→
+  1683→If a change breaks something:
+  1684→
+  1685→STOP.
+  1686→
+  1687→Fix it before proceeding.
+  1688→
+  1689→============================================================
+  1690→57. ACCEPTANCE CRITERIA
+  1691→============================================================
+  1692→
+  1693→The project is NOT finished until:
+  1694→
+  1695→[ ] frontend builds successfully
+  1696→
+  1697→[ ] backend starts successfully
+  1698→
+  1699→[ ] API works
+  1700→
+  1701→[ ] location errors are handled
+  1702→
+  1703→[ ] routing errors are handled
+  1704→
+  1705→[ ] HOS engine is deterministic
+  1706→
+  1707→[ ] 11-hour rule works
+  1708→
+  1709→[ ] 14-hour rule works
+  1710→
+  1711→[ ] 30-minute break works
+  1712→
+  1713→[ ] fuel logic works
+  1714→
+  1715→[ ] 10-hour reset works
+  1716→
+  1717→[ ] 70-hour cycle works
+  1718→
+  1719→[ ] 34-hour restart works
+  1720→
+  1721→[ ] multi-day trips work
+  1722→
+  1723→[ ] midnight-crossing events split correctly
+  1724→
+  1725→[ ] every daily log totals exactly 1440 minutes
+  1726→
+  1727→[ ] no daily-log gaps
+  1728→
+  1729→[ ] no daily-log overlaps
+  1730→
+  1731→[ ] map matches timeline
+  1732→
+  1733→[ ] timeline matches backend
+  1734→
+  1735→[ ] daily logs match backend
+  1736→
+  1737→[ ] summary matches backend
+  1738→
+  1739→[ ] loading state works
+  1740→
+  1741→[ ] empty state works
+  1742→
+  1743→[ ] error state works
+  1744→
+  1745→[ ] responsive layout works
+  1746→
+  1747→[ ] accessibility basics pass
+  1748→
+  1749→[ ] no secrets committed
+  1750→
+  1751→[ ] production build works
+  1752→
+  1753→[ ] README is professional
+  1754→
+  1755→[ ] known limitations are documented
+  1756→
+  1757→============================================================
+  1758→58. FINAL OUTPUT
+  1759→============================================================
+  1760→
+  1761→When all work is complete, provide a concise final engineering report:
+  1762→
+  1763→1. What was audited
+  1764→2. What was fixed
+  1765→3. What was redesigned
+  1766→4. HOS improvements
+  1767→5. Backend improvements
+  1768→6. Frontend improvements
+  1769→7. UX improvements
+  1770→8. Testing added
+  1771→9. Security improvements
+  1772→10. Performance improvements
+  1773→11. Deployment status
+  1774→12. Remaining limitations
+  1775→13. Files changed
+  1776→14. Commands used to verify the project
+  1777→
+  1778→Also provide:
+  1779→
+  1780→- final test result
+  1781→- final build result
+  1782→- final architecture summary
+  1783→- any remaining high-priority issue
+  1784→
+  1785→Do not say "everything is perfect".
+  1786→
+  1787→Be honest about remaining limitations.
+  1788→
+  1789→============================================================
+  1790→59. FINAL QUALITY BAR
+  1791→============================================================
+  1792→
+  1793→The finished project should satisfy this standard:
+  1794→
+  1795→A recruiter opens the project.
+  1796→
+  1797→Within 10 seconds they understand:
+  1798→
+  1799→WHAT:
+  1800→Truck-driver HOS trip planner.
+  1801→
+  1802→INPUT:
+  1803→Current location → pickup → dropoff → cycle hours.
+  1804→
+  1805→OUTPUT:
+  1806→Route + compliant schedule + daily ELD logs.
+  1807→
+  1808→WHY:
+  1809→Automatically helps plan a trip around modeled HOS constraints.
+  1810→
+  1811→Then they interact with it.
+  1812→
+  1813→The UI feels intentional.
+  1814→
+  1815→The calculations feel trustworthy.
+  1816→
+  1817→The ELD logs feel meaningful.
+  1818→
+  1819→The code is understandable.
+  1820→
+  1821→The tests demonstrate correctness.
+  1822→
+  1823→The README explains the engineering.
+  1824→
+  1825→There is no obvious "college prototype" feeling.
+  1826→
+  1827→The project should look SHORTLISTABLE.
+  1828→
+  1829→Do not optimize for feature count.
+  1830→
+  1831→Optimize for:
+  1832→
+  1833→CORRECTNESS
+  1834→CLARITY
+  1835→RELIABILITY
+  1836→UX
+  1837→ENGINEERING QUALITY
+  1838→EXPLAINABILITY
+  1839→PRESENTATION
+  1840→
+  1841→============================================================
+  1842→START NOW
+  1843→============================================================
+  1844→
+  1845→First, DO NOT MODIFY CODE.
+  1846→
+  1847→Perform the repository audit.
+  1848→
+  1849→Return:
+  1850→
+  1851→1. Current architecture
+  1852→2. Current user flow
+  1853→3. Current strengths
+  1854→4. Critical bugs
+  1855→5. HOS risks
+  1856→6. UX problems
+  1857→7. UI problems
+  1858→8. Backend problems
+  1859→9. Testing gaps
+  1860→10. Security gaps
+  1861→11. Performance issues
+  1862→12. Recommended improvement plan
+  1863→13. Priority: CRITICAL / HIGH / MEDIUM / LOW
+  1864→
+  1865→Then wait for approval before making major architectural changes.

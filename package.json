@@ -6,6 +6,8 @@
     "dev": "bash start.sh",
     "backend": "cd backend && venv/bin/python manage.py runserver 0.0.0.0:8000",
     "frontend": "cd frontend && bun run dev",
-    "test": "cd backend && venv/bin/python -m pytest tests/ -v"
+    "test": "cd backend && venv/bin/python -m pytest tests/ -v",
+    "test:frontend": "cd frontend && vitest run",
+    "build": "cd frontend && bun run build"
   }
 }

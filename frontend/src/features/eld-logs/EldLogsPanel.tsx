@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { allLogsPdfUrl, logImageUrl } from "@/services/api";
 import type { PlanPayload } from "@/types";
 
 /**
@@ -22,7 +23,7 @@ export default function EldLogsPanel({ payload }: { payload: PlanPayload }) {
           </p>
         </div>
         <a
-          href={`/api/trips/${trip.id}/logs/pdf/`}
+          href={allLogsPdfUrl(trip.id)}
           className="rounded-lg border border-brand-600 px-4 py-2 text-xs font-semibold text-brand-700 transition hover:bg-brand-50"
           download
         >
@@ -72,7 +73,7 @@ export default function EldLogsPanel({ payload }: { payload: PlanPayload }) {
                 View Log
               </button>
               <a
-                href={log.image_url}
+                href={logImageUrl(payload, log.day_number)}
                 download={`day${log.day_number}_log.png`}
                 className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-semibold text-slate-600 transition hover:border-brand-500 hover:text-brand-600"
               >
@@ -109,12 +110,25 @@ function LogViewerModal({
   const total = payload.logs.length;
   const log = payload.logs.find((l) => l.day_number === day);
   const [zoom, setZoom] = useState(1);
+
+  // Close on Escape (dialog behavior).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   if (!log) return null;
 
   return (
     <div
       className="fixed inset-0 z-[1000] flex flex-col bg-black/80 p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Daily ELD log viewer — day ${log.day_number} of ${total}`}
     >
       <div
         className="mx-auto flex h-full w-full max-w-5xl flex-col"
@@ -128,6 +142,7 @@ function LogViewerModal({
             <button
               disabled={log.day_number <= 1}
               onClick={() => onNavigate(log.day_number - 1)}
+              aria-label="Show previous day log"
               className="rounded-md bg-white/10 px-3 py-1.5 font-medium hover:bg-white/20 disabled:opacity-40"
             >
               ← Previous Day
@@ -138,6 +153,7 @@ function LogViewerModal({
             <button
               disabled={log.day_number >= total}
               onClick={() => onNavigate(log.day_number + 1)}
+              aria-label="Show next day log"
               className="rounded-md bg-white/10 px-3 py-1.5 font-medium hover:bg-white/20 disabled:opacity-40"
             >
               Next Day →
@@ -155,7 +171,7 @@ function LogViewerModal({
               Zoom In
             </button>
             <a
-              href={log.image_url}
+              href={logImageUrl(payload, log.day_number)}
               download={`day${log.day_number}_log.png`}
               className="rounded-md bg-brand-500 px-3 py-1.5 font-semibold hover:bg-brand-600"
             >
@@ -163,6 +179,7 @@ function LogViewerModal({
             </a>
             <button
               onClick={onClose}
+              aria-label="Close log viewer"
               className="rounded-md bg-red-500/90 px-3 py-1.5 font-semibold hover:bg-red-500"
             >
               ✕ Close
@@ -171,8 +188,8 @@ function LogViewerModal({
         </div>
         <div className="thin-scroll flex-1 overflow-auto rounded-lg bg-white">
           <img
-            src={log.image_url}
-            alt={`Daily ELD log day ${log.day_number}`}
+            src={logImageUrl(payload, log.day_number)}
+            alt={`Daily ELD log sheet for day ${log.day_number}, ${log.date}`}
             className="mx-auto block origin-top transition-transform"
             style={{
               transform: `scale(${zoom})`,

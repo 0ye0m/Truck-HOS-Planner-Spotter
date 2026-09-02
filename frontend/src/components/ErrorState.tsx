@@ -6,7 +6,10 @@ export default function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+    <div
+      className="rounded-xl border border-red-200 bg-red-50 p-6"
+      role="alert"
+    >
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-red-500 text-sm text-white">
           !

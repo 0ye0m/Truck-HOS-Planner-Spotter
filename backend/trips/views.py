@@ -19,8 +19,7 @@ import logging
 from pathlib import Path
 
 from django.conf import settings
-from django.http import FileResponse, HttpResponse
-from django.utils import timezone as dj_tz
+from django.http import FileResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
@@ -28,21 +27,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from config.settings import GEOCODING_API_URL, ROUTING_API_URL
-from hos import (
-    Activity,
-    ActivityType,
-    GeoPoint,
-    RouteLeg,
-    Schedule,
-    SchedulerConfig,
-    generate_schedule,
-    split_into_daily_logs,
-    validate_schedule,
-)
-from hos.daily import cycle_used_at_day_starts
-
-from eldlogs.pdf import image_to_png_bytes, images_to_pdf
-from eldlogs.renderer import render_daily_log
+from eldlogs.pdf import images_to_pdf
+from hos import validate_schedule
+from routing.geocoder import Geocoder, GeocodingError
 from trips.models import DailyLog, Route, ScheduledActivity, Trip
 from trips.serializers import GeocodeQuerySerializer, TripPlanInputSerializer
 from trips.services import TripInput, TripPlanningError, TripPlanner
@@ -98,63 +85,19 @@ def _get_trip(trip_id: int) -> Trip:
         raise ValidationError({"error": f"Trip {trip_id} was not found."})
 
 
-def _schedule_from_db(trip: Trip) -> Schedule:
-    """Rebuild the canonical Schedule from stored rows (no recalculation)."""
-    schedule = Schedule(cycle_used_before=trip.current_cycle_used)
-    for index, row in enumerate(
-        ScheduledActivity.objects.filter(trip=trip).order_by("seq")
-    ):
-        schedule.add(
-            Activity(
-                seq=row.seq,
-                type=ActivityType(row.activity_type),
-                start=row.start,
-                end=row.end,
-                location=GeoPoint(
-                    name=row.location_name or "En route", lat=row.lat, lon=row.lon
-                ),
-                leg_index=row.leg_index,
-                miles_into_leg=row.miles_into_leg,
-                distance_miles=row.distance_miles,
-                note=row.note,
-            )
-        )
-        if index == 0:
-            schedule.start = row.start
-        schedule.end = row.end
-    from hos.models import HosStateSnapshot
+def _home_tz_iso(value, tz_name: str) -> str:
+    """ISO string of a stored datetime expressed in the trip's home-terminal
+    time zone. Stored rows are UTC; the plan pipeline serves home-terminal
+    times, so every endpoint must use the same convention (one source of
+    truth — no contradictory timestamps between endpoints)."""
+    if value is None:
+        return None
+    from zoneinfo import ZoneInfo
 
-    driving = sum(
-        a.duration_hours for a in schedule.activities if a.duty_status.value == "DRIVING"
-    )
-    onduty = sum(
-        a.duration_hours
-        for a in schedule.activities
-        if a.duty_status.value in ("DRIVING", "ON_DUTY_NOT_DRIVING")
-    )
-    schedule.total_driving_hours = driving
-    schedule.total_on_duty_hours = onduty
-    schedule.total_distance_miles = (
-        trip.route.distance_miles if hasattr(trip, "route") else 0.0
-    )
-    schedule.hos = HosStateSnapshot(
-        cycle_used_before=trip.current_cycle_used,
-        cycle_planned=onduty,
-        cycle_remaining_after=max(0.0, 70.0 - trip.current_cycle_used - onduty),
-        driving_used_in_period=driving,
-        driving_remaining_in_period=max(0.0, 11.0 - driving),
-        window_used_hours=0.0,
-        window_remaining_hours=0.0,
-        minutes_since_last_break=None,
-        next_break_in_hours=None,
-        next_rest_hours=10.0,
-        restart_used="RESTART_34H" in [
-            a.activity_type for a in ScheduledActivity.objects.filter(trip=trip)
-        ],
-        driving_total_hours=driving,
-        on_duty_total_hours=onduty,
-    )
-    return schedule
+    try:
+        return value.astimezone(ZoneInfo(tz_name)).isoformat()
+    except Exception:
+        return value.isoformat()
 
 
 # ----------------------------------------------------------------------
@@ -181,57 +124,20 @@ def validate_trip(request):
     """
     POST /api/trips/validate/ — dry-run: geocode + route + schedule +
     validate WITHOUT persisting anything or rendering logs.
+
+    Uses exactly the same preparation stage as /plan/ (TripPlanner.prepare),
+    so the two endpoints can never drift apart.
     """
     serializer = TripPlanInputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     data = _input_to_dataclass(serializer)
 
-    planner = TripPlanner()
     try:
-        current = planner._geocode(data.current_location, "current location")
-        pickup = planner._geocode(data.pickup_location, "pickup location")
-        dropoff = planner._geocode(data.dropoff_location, "dropoff location")
-
-        from datetime import datetime as dt
-        from zoneinfo import ZoneInfo
-
-        from routing.us_states import timezone_for_state
-        from trips.services import DEFAULT_START_TIME
-
-        tz_name = data.timezone or timezone_for_state(current.state, "America/Chicago")
-        tzinfo = ZoneInfo(tz_name)
-        start_time = data.start_time or DEFAULT_START_TIME
-        start_date = data.start_date or dj_tz.localdate()
-        start_local = dt.combine(start_date, start_time).replace(tzinfo=tzinfo)
-
-        leg_results = [planner._route(current, pickup), planner._route(pickup, dropoff)]
-        endpoints = [
-            planner._triplet(current),
-            planner._triplet(pickup),
-            planner._triplet(dropoff),
-        ]
-        legs = [
-            RouteLeg(
-                start=GeoPoint(
-                    name=endpoints[i][0], lat=endpoints[i][1], lon=endpoints[i][2]
-                ),
-                end=GeoPoint(
-                    name=endpoints[i + 1][0],
-                    lat=endpoints[i + 1][1],
-                    lon=endpoints[i + 1][2],
-                ),
-                distance_miles=leg_results[i].distance_miles,
-                duration_hours=leg_results[i].duration_hours,
-                geometry=leg_results[i].geometry,
-            )
-            for i in range(2)
-        ]
-        schedule = generate_schedule(
-            legs, data.current_cycle_used, start_local, SchedulerConfig()
-        )
+        prepared = TripPlanner().prepare(data)
     except TripPlanningError as exc:
         return _planning_error_response(exc)
 
+    schedule = prepared.schedule
     violations = validate_schedule(schedule, data.current_cycle_used)
     errors = [v for v in violations if v["severity"] == "error"]
     hos = schedule.hos
@@ -253,7 +159,7 @@ def validate_trip(request):
             "route": {
                 "distance_miles": round(schedule.total_distance_miles, 1),
                 "duration_hours": round(
-                    sum(r.duration_hours for r in leg_results), 2
+                    sum(r.duration_hours for r in prepared.leg_results), 2
                 ),
             },
         }
@@ -278,8 +184,8 @@ def trip_detail(request, trip_id: int):
             "seq": row.seq,
             "type": row.activity_type,
             "duty_status": row.duty_status,
-            "start": row.start.isoformat(),
-            "end": row.end.isoformat(),
+            "start": _home_tz_iso(row.start, trip.home_terminal_timezone),
+            "end": _home_tz_iso(row.end, trip.home_terminal_timezone),
             "duration_minutes": round(row.duration_minutes, 1),
             "distance_miles": round(row.distance_miles, 1),
             "location": row.location_name or "En route",
@@ -316,8 +222,8 @@ def trip_detail(request, trip_id: int):
             "location": row.location_name or "En route",
             "lat": row.lat,
             "lon": row.lon,
-            "arrival": row.start.isoformat(),
-            "departure": row.end.isoformat(),
+            "arrival": _home_tz_iso(row.start, trip.home_terminal_timezone),
+            "departure": _home_tz_iso(row.end, trip.home_terminal_timezone),
             "duration_minutes": round(row.duration_minutes, 1),
             "note": row.note,
         }
@@ -355,6 +261,8 @@ def trip_detail(request, trip_id: int):
                 "provider": route.provider,
             },
             "schedule": {
+                "start": activities[0]["start"] if activities else None,
+                "end": activities[-1]["end"] if activities else None,
                 "activities": activities,
                 "restart_used": any(
                     a["type"] == "RESTART_34H" for a in activities
@@ -458,6 +366,8 @@ def trip_logs_pdf(request, trip_id: int):
         )
     images = []
     for log in logs:
+        if not log.rendered_file:
+            continue  # log row exists but no rendered image was stored
         path = Path(settings.MEDIA_ROOT) / log.rendered_file
         if path.exists():
             from PIL import Image
@@ -506,11 +416,12 @@ def geocode(request):
     """GET /api/geocode/?q=... — geocoding helper (cached, throttled)."""
     serializer = GeocodeQuerySerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
-    planner = TripPlanner()
     try:
-        result = planner.geocoder.geocode(serializer.validated_data["q"])
-    except TripPlanningError as exc:
-        return _planning_error_response(exc)
+        result = Geocoder().geocode(serializer.validated_data["q"])
+    except GeocodingError as exc:
+        # Unknown address / timeout / service unavailable — a structured,
+        # user-facing error, never a 500.
+        return _planning_error_response(TripPlanningError(exc.message, exc.kind))
     return Response(
         {
             "query": result.query,

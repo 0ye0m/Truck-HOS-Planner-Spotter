@@ -214,7 +214,16 @@ POST /api/trips/plan/
 
 Input validation: all locations non-empty; `0 ≤ current_cycle_used ≤ 70`;
 useful HTTP status codes (400 invalid address, 503 map service unavailable,
-422 HOS infeasible, …); errors are structured, never raw tracebacks.
+422 HOS infeasible, …). Every error — validation, planning or server-side —
+uses one structured shape, never raw tracebacks:
+
+```json
+{ "error": "Pickup location could not be found. Try adding the city and state.",
+  "code": "address-not-found" }
+```
+
+All timestamps in every endpoint are expressed in the trip's home-terminal
+time zone (the same convention used by the log sheets).
 
 ## ELD log rendering
 
@@ -239,31 +248,34 @@ visual layout.
 
 ## Testing
 
-35+ automated tests (`backend/tests/`) cover the 15 assessment accuracy
-scenarios plus edge cases:
+**Backend — 52 automated tests** (`backend/tests/`):
 
-1. short trip below all limits
-2. trip requiring a 30-minute break
-3. trip requiring an overnight 10-hour rest
-4. trip requiring multiple daily logs
-5. trip requiring a fuel stop
-6. cycle near 70 (65 h) — schedule cannot exceed the remaining cycle
-7. trip crossing midnight — clean day split
-8. pickup/dropoff consume exactly 1 h each (and not driving hours)
-9. break inserted exactly at 8 cumulative driving hours
-10. no driving after the 14-hour window expires
-11. driving stops at exactly 11 hours
-12. 34-hour restart scenario (explicit, resets cycle)
-13. every daily log totals exactly 24 hours
-14. daily miles sum exactly to trip driving miles
-15. map/timeline/logs all derive from the one canonical schedule
-
-plus: zero-length legs, same current/pickup location, cycle 0 / 70 / >70,
-violating schedules are caught by validators, stop positions lie on the
-route, API contract & error handling, PNG & PDF outputs.
+- `test_hos_engine.py` — the 15 assessment accuracy scenarios plus edge cases
+  (zero-length legs, same locations, cycle 0/65/70, midnight crossing,
+  validators catch mutations, stop positions on the route).
+- `test_invariants.py` — property-style sweep across 13 deterministic
+  scenarios asserting the global invariants for every schedule: positive
+  durations, chronological order, no overlaps, daily totals = exactly
+  1,440 min, no gaps, 11 h driving / 14 h window / 8 h break / 70 h cycle
+  never violated, fuel threshold never exceeded, pickup & dropoff exactly
+  once, daily miles = route miles.
+- `test_api.py` — API contract with mocked geocoder/router: full pipeline,
+  multi-day trips, friendly error codes, `geocode` returning structured 400
+  (never 500), `validate` falling back gracefully on an invalid timezone,
+  `plan`/`validate` sharing one preparation stage, and `trip_detail`
+  exposing home-terminal timestamps consistent with `/plan/`.
 
 ```bash
 cd backend && ./venv/bin/python -m pytest tests/ -v
+```
+
+**Frontend — 11 behavior tests** (`frontend/src/**/*.test.tsx`, Vitest +
+Testing Library): form validation and submit payloads, demo-trip loading,
+remaining-cycle display, empty/loading/error state behavior, retry action,
+and the error mapper that never leaks raw network failures to users.
+
+```bash
+cd frontend && bun run test      # or: npm run test
 ```
 
 ## Local development
@@ -285,7 +297,13 @@ bun run dev        # Vite on :3000, proxies /api -> :8000
 ```
 
 Open http://localhost:3000. A one-command start (`bash start.sh` from the
-repo root) launches both services.
+repo root — or simply `bun run dev`) launches both services: the Vite dev
+server boots the Django API automatically and proxies `/api` and `/media`
+to it, so the browser only ever talks to :3000.
+
+The planner form includes three deterministic **example trips** (short trip,
+long haul, high cycle usage) for quick manual QA; selecting one populates
+the form without submitting it.
 
 ## Deployment
 

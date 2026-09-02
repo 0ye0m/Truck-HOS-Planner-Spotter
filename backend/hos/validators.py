@@ -230,12 +230,12 @@ def validate_fuel_interval(activities: list[Activity]) -> list[dict[str, Any]]:
         if activity.duty_status == DutyStatus.DRIVING:
             miles_since_fuel += activity.distance_miles
         elif activity.type.value == "FUEL":
-            if miles_since_fuel > 1000.0 + EPS:
+            if miles_since_fuel > C.FUEL_INTERVAL_MILES + EPS:
                 errors.append(
                     _violation(
                         "fuel-interval",
                         f"{miles_since_fuel:.1f} miles were driven since the "
-                        "previous fuel stop (limit: 1,000 miles).",
+                        f"previous fuel stop (limit: {C.FUEL_INTERVAL_MILES:.0f} miles).",
                         activity,
                     )
                 )

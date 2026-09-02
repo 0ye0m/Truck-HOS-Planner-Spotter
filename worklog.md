@@ -27,3 +27,55 @@ Stage Summary:
 - ELD logs are genuinely DRAWN on a FMCSA-style sheet (not a fake table), with remarks, per-status totals == 24h validated, daily miles == route miles validated, multi-day support and PDF export.
 - One canonical schedule feeds map + timeline + summary + logs (spec §35).
 - All 47 acceptance checklist items addressed; deployment configs + README + .env.example included.
+
+---
+Task ID: 2 (PHASE 1-2 — Repository audit, no code changed)
+Agent: Super Z (main agent)
+Task: Full codebase audit per the 59-section polish prompt (Pasted Content_1788375119739.txt): architecture, correctness risks, UX/UI, a11y, security, testing gaps. Audit ONLY — then incremental fixes.
+
+Work Log:
+- Read: worklog, README, package.json, start.sh, render.yaml, vercel.json, both .env.example, .gitignore.
+- Backend: hos/ (constants, models, state, scheduler, daily, validators, geometry, exceptions), routing/ (geocoder, router, stops, us_states), eldlogs/ (renderer, coordinates, template header, pdf), trips/ (services, views, serializers, models, exceptions, admin, apps), config/settings.py + urls.py, tests/.
+- Frontend: App, main, index.css, tailwind.config, index.html, types, services/api, hooks/usePlanTrip, all features (form, hos card, map, timeline, eld panel) and components (header, summary, instructions, empty, error, loading).
+- Ran backend suite: 35/35 pass. Probed live API for suspected bugs.
+
+Audit findings:
+A. Works well: pure HOS engine separated from Django/UI; one canonical timeline feeds map/timeline/summary/logs; validators run before serving; 24h daily invariant enforced; deterministic scheduler with documented priority; Pillow log sheets from centralized coordinates; 35 tests.
+B. CONFIRMED BUG (500): GET /api/geocode/?q=<unknown> raises GeocodingError but view only catches TripPlanningError → unstructured 500.
+C. CONFIRMED BUG (500): POST /api/trips/validate/ with invalid timezone → unguarded ZoneInfo(tz_name) crash (plan/ endpoint guards it, validate/ does not).
+D. Duplication: validate_trip view re-implements geocode→route→legs (drifts from services.plan); uses planner._geocode/_route privates.
+E. Dead code: views._schedule_from_db never called; images_to_pdf unused "first, *rest" unpack; settings.py unused timedelta import; RouteMap eventHandlers={{}}; types PlanRequest.co_name stray.
+F. Hardcoded constant: validators.validate_fuel_interval uses literal 1000.0 instead of C.FUEL_INTERVAL_MILES (violates single-source constants rule).
+G. Prod-correctness: EldLogsPanel hardcodes "/api/trips/{id}/logs/pdf/" and raw log.image_url instead of the api.ts helpers (breaks when VITE_API_BASE_URL is set).
+H. Map: endCoord always draws a second DROPOFF icon on top of the canonical DROPOFF marker (overlap at same point).
+I. Redundancy: TripSummary shows "Est. driving time" (route) and "Total driving (HOS)" — same number twice; missing useful "Trip duration" and "ETA at dropoff" (prompt §11).
+J. A11y: form labels not associated with inputs (no htmlFor/id); log viewer modal lacks role=dialog/aria-modal/Escape/focus; loading + error regions lack aria-live/role=alert; network failure surfaces raw "Failed to fetch".
+K. Robustness: logs/pdf view opens log.rendered_file without empty-check (empty path → Image.open(directory) crash).
+L. Testing gaps: no invariant-sweep tests (§35 properties across many trips); no frontend tests (§36); no tests for geocode/validate 500 fixes.
+M. Missing §26 feature: no visible "Calculation assumptions" section in the UI (only footer text).
+N. Security: OK — no secrets committed, CORS scoped, structured errors, DEBUG default only in dev; noted flat error shape {error, code} is consistent and documented.
+
+Stage Summary:
+- Audit complete; two live 500 bugs confirmed; fix plan ordered PHASE 3→17, incremental, preserving working functionality (golden rule).
+
+---
+Task ID: 3 (PHASE 3-17 — Systematic polish implementation)
+Agent: Super Z (main agent)
+Task: Implement the audit fix plan incrementally: backend correctness, API errors, frontend UX/a11y, tests, docs, build verification.
+
+Work Log:
+- services.py: extracted shared TripPlanner.prepare() (PreparedTrip dataclass) — plan/ and validate/ now share ONE preparation stage; removed validate_trip's duplicated geocode/route/legs code and its private-method calls.
+- views.py: FIXED geocode 500 (catch GeocodingError → structured 400 address-not-found); validate_trip rewritten on prepare() (fixes ZoneInfo 500, falls back to America/Chicago); removed dead _schedule_from_db; PDF view skips logs with empty rendered_file; trip_detail now returns schedule.start/end and ALL timestamps normalized to home-terminal tz (_home_tz_iso) — fixes contract drift vs /plan/ found by the new tests.
+- hos/validators.py: validate_fuel_interval now uses C.FUEL_INTERVAL_MILES (no hardcoded 1000).
+- eldlogs/pdf.py: removed dead unpacking; settings.py: removed unused timedelta import.
+- start.sh: FIXED supervision bug (exec inside the loop killed the supervisor on first backend exit).
+- vite.config.ts: added djangoBackend() dev plugin — Vite spawns/keeps the Django API alive as its child (port-guarded, killed only on process exit). One command now truly boots the whole stack; verified the child survives across shell sessions.
+- Frontend: api.ts friendlyError() (network failures → actionable message, no raw "Failed to fetch"); EldLogsPanel uses allLogsPdfUrl()/logImageUrl() helpers (correct when VITE_API_BASE_URL is set) + modal gets role=dialog/aria-modal/Escape/aria-labels; RouteMap no longer double-draws the DROPOFF endpoint marker; TripSummary redesigned (Route distance, Driving time, Trip duration (HOS), ETA at dropoff, fuel/rests, on-duty, log sheets — removes the duplicated driving-time stat); TripPlannerForm: useId-based label/input association, aria-invalid/aria-describedby on cycle input, aria-expanded advanced toggle, three labeled example trips (§38: Short trip / Long haul / High cycle usage) that populate without submitting; AssumptionsPanel (§26, collapsed <details>); LoadingStages role=status + aria-live; ErrorState role=alert; removed stray PlanRequest.co_name; types now include schedule.start/end.
+- Tests: NEW backend/tests/test_invariants.py — 13-scenario property sweep (§35 invariants: 1440-min days, no gaps/overlaps, 11h/14h/8h/70h/fuel never violated, pickup+dropoff once, daily miles == route miles); NEW API regression tests (geocode 400, validate tz fallback, plan/validate parity, detail timestamp consistency); NEW frontend Vitest+RTL suite (11 tests) covering form validation/submit/demo/remaining-cycle, state components, friendlyError mapping; package.json test scripts (test, test:frontend, build); tsconfig excludes test files from tsc -b.
+- README: structured error contract + tz convention, 52 backend + 11 frontend test descriptions, one-command dev note, example trips note.
+
+Stage Summary:
+- Backend: 52/52 tests pass (was 35; +17 new). Frontend: 11/11 tests pass. Production build (tsc -b && vite build) succeeds.
+- Live E2E via the Vite proxy: LA→Denver→Chicago cycle=24 → 201, 2,022.3 mi, 35.64 h driving, 4 daily logs, 8 markers, 0 violations; trip_detail timestamps == plan timestamps (home-terminal tz); day-1 PNG 173 KB; all-logs PDF 1.0 MB.
+- Both audit 500s now return proper responses (verified live): geocode unknown → 400 structured; validate bad tz → 200 fallback.
+- Remaining limitations (honest): fuel+break merging (two consecutive 30-min stops when both thresholds coincide) kept per documented priority order; 70/8 recap day-by-day history remains a documented approximation; deployment not exercised here (no external host) — render.yaml/vercel.json configs reviewed only.

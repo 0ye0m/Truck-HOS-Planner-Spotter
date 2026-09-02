@@ -82,9 +82,10 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
   const { route, markers, trip } = payload;
   const homeTz = trip.home_terminal_timezone;
 
-  // Current-location marker: first coordinate of the route
+  // Current-location marker: first coordinate of the route. The dropoff
+  // endpoint does NOT get an extra marker here — the canonical schedule
+  // already provides a DROPOFF marker with full popup details.
   const startCoord = route.geometry[0];
-  const endCoord = route.geometry[route.geometry.length - 1];
 
   const majorTypes = new Set(["PICKUP", "DROPOFF", "SLEEPER_BERTH", "RESTART_34H"]);
 
@@ -111,27 +112,11 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
         />
 
         {startCoord && (
-          <Marker
-            position={startCoord}
-            icon={buildIcon("CURRENT", true)}
-            eventHandlers={{}}
-          >
+          <Marker position={startCoord} icon={buildIcon("CURRENT", true)}>
             <Popup>
               <PopupBody
                 title="CURRENT LOCATION"
                 location={trip.current_location}
-                rows={[]}
-              />
-            </Popup>
-          </Marker>
-        )}
-
-        {endCoord && (
-          <Marker position={endCoord} icon={buildIcon("DROPOFF", true)}>
-            <Popup>
-              <PopupBody
-                title="DROPOFF"
-                location={trip.dropoff_location}
                 rows={[]}
               />
             </Popup>

@@ -6,7 +6,6 @@ Environment driven: copy .env.example to .env and adjust.
 
 import os
 from pathlib import Path
-from datetime import timedelta
 
 from dotenv import load_dotenv
 

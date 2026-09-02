@@ -17,7 +17,11 @@ export default function LoadingStages() {
   }, []);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-card">
+    <div
+      className="rounded-xl border border-slate-200 bg-white p-6 shadow-card"
+      role="status"
+      aria-live="polite"
+    >
       <div className="flex items-center gap-3">
         <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
         <p className="text-sm font-semibold text-night-900">

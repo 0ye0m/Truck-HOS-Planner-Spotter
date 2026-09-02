@@ -16,7 +16,7 @@ export class ApiRequestError extends Error {
 
 async function handle<T>(response: Response): Promise<T> {
   if (response.ok) return (await response.json()) as T;
-  let message = "Something went wrong. Please try again.";
+  let message = "Something went wrong while planning this trip. Please try again.";
   let code = "request-failed";
   try {
     const data = await response.json();
@@ -25,9 +25,24 @@ async function handle<T>(response: Response): Promise<T> {
       code = data.code ?? code;
     }
   } catch {
-    /* non-JSON error body */
+    /* non-JSON error body — keep the friendly default message */
   }
   throw new ApiRequestError(message, code);
+}
+
+/** Uniform, user-facing message for network/offline failures. */
+export function friendlyError(error: unknown): string {
+  if (error instanceof ApiRequestError) return error.message;
+  if (error instanceof Error) {
+    if (/fetch|network|load failed/i.test(error.message)) {
+      return (
+        "Cannot reach the trip planner server. Check your connection and " +
+        "try again — the planner service may be restarting."
+      );
+    }
+    return error.message;
+  }
+  return "Something went wrong while planning this trip. Please try again.";
 }
 
 export async function planTrip(request: PlanRequest): Promise<PlanPayload> {

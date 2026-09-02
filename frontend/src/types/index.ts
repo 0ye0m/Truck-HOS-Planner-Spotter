@@ -132,7 +132,12 @@ export interface RouteInfo {
 export interface PlanPayload {
   trip: TripInfo;
   route: RouteInfo;
-  schedule: { activities: Activity[]; restart_used: boolean };
+  schedule: {
+    start?: string | null;
+    end?: string | null;
+    activities: Activity[];
+    restart_used: boolean;
+  };
   hos_summary: HosSummary;
   markers: Marker[];
   logs: DailyLog[];
@@ -151,7 +156,6 @@ export interface PlanRequest {
   trailer_number?: string;
   main_office?: string;
   co_driver?: string;
-  co_name?: string;
   timezone?: string;
 }
 

@@ -17,7 +17,6 @@ def images_to_pdf(images: list[Image.Image], output_path: str | Path) -> Path:
         raise ValueError("No log images to export.")
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    first, *rest = images
     rgb = [img.convert("RGB") for img in images]
     rgb[0].save(
         output,
