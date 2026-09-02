@@ -1,0 +1,11 @@
+{
+  "name": "truckhos-planner",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "bash start.sh",
+    "backend": "cd backend && venv/bin/python manage.py runserver 0.0.0.0:8000",
+    "frontend": "cd frontend && bun run dev",
+    "test": "cd backend && venv/bin/python -m pytest tests/ -v"
+  }
+}

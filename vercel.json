@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd frontend && bun install && bun run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://REPLACE-WITH-YOUR-BACKEND/api/$1" },
+    { "source": "/media/(.*)", "destination": "https://REPLACE-WITH-YOUR-BACKEND/media/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
