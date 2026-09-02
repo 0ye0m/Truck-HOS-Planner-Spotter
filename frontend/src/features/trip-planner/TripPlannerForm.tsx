@@ -1,4 +1,15 @@
 import { useId, useState } from "react";
+import LocationInput from "@/components/LocationInput";
+import {
+  ArrowRightIcon,
+  FlagIcon,
+  GaugeIcon,
+  InfoHint,
+  MapPinIcon,
+  PackageIcon,
+  SlidersIcon,
+  TruckIcon,
+} from "@/components/icons";
 import type { PlanRequest } from "@/types";
 
 interface Props {
@@ -27,13 +38,21 @@ const EMPTY_ADVANCED: Advanced = {
 };
 
 /** Deterministic sample scenarios for quick manual QA (assessment §37/38). */
-const DEMO_TRIPS: { label: string; current: string; pickup: string; dropoff: string; cycle: string }[] = [
+const DEMO_TRIPS: {
+  label: string;
+  current: string;
+  pickup: string;
+  dropoff: string;
+  cycle: string;
+  note: string;
+}[] = [
   {
     label: "Short trip",
     current: "Chicago, IL",
     pickup: "Indianapolis, IN",
     dropoff: "Columbus, OH",
     cycle: "32",
+    note: "Chicago → Indianapolis → Columbus · cycle 32 h",
   },
   {
     label: "Long haul (multi-day)",
@@ -41,6 +60,7 @@ const DEMO_TRIPS: { label: string; current: string; pickup: string; dropoff: str
     pickup: "Denver, CO",
     dropoff: "Chicago, IL",
     cycle: "24",
+    note: "LA → Denver → Chicago · cycle 24 h",
   },
   {
     label: "High cycle usage",
@@ -48,6 +68,7 @@ const DEMO_TRIPS: { label: string; current: string; pickup: string; dropoff: str
     pickup: "Memphis, TN",
     dropoff: "Atlanta, GA",
     cycle: "63",
+    note: "Dallas → Memphis → Atlanta · cycle 63 h",
   },
 ];
 
@@ -135,6 +156,8 @@ export default function TripPlannerForm({ isSubmitting, onSubmit }: Props) {
             <button
               key={demo.label}
               type="button"
+              title={demo.note}
+              aria-label={demo.label}
               onClick={() => loadDemo(index)}
               className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:border-brand-500 hover:text-brand-600"
             >
@@ -144,124 +167,169 @@ export default function TripPlannerForm({ isSubmitting, onSubmit }: Props) {
         </div>
       </div>
 
-      <div className="space-y-4 px-5 py-5">
-        <Field
+      <div className="space-y-5 px-5 py-5">
+        {/* Step 1 — current location */}
+        <LocationInput
           id={`${id}-current`}
           label="Current Location"
+          step="1"
+          leadingIcon={MapPinIcon}
           placeholder="e.g. Chicago, IL"
           value={currentLocation}
           onChange={setCurrentLocation}
         />
+
+        {/* Steps 2–3 — pickup + dropoff */}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field
+          <LocationInput
             id={`${id}-pickup`}
             label="Pickup Location"
+            step="2"
+            leadingIcon={PackageIcon}
             placeholder="e.g. Indianapolis, IN"
             value={pickupLocation}
             onChange={setPickupLocation}
           />
-          <Field
+          <LocationInput
             id={`${id}-dropoff`}
             label="Dropoff Location"
+            step="3"
+            leadingIcon={FlagIcon}
             placeholder="e.g. Columbus, OH"
             value={dropoffLocation}
             onChange={setDropoffLocation}
           />
         </div>
 
+        {/* Step 4 — current cycle used */}
         <div>
           <label
             htmlFor={`${id}-cycle`}
-            className="mb-1 block text-sm font-medium text-night-800"
+            className="mb-1 flex items-center gap-1.5 text-sm font-medium text-night-800"
           >
-            Current Cycle Used (hrs){" "}
-            <span className="text-xs font-normal text-slate-400">
-              70-hour / 8-day cycle
+            <span
+              aria-hidden="true"
+              className="flex h-4 w-4 flex-none items-center justify-center rounded-full bg-brand-100 text-[10px] font-bold text-brand-700"
+            >
+              4
             </span>
+            Current Cycle Used (hrs)
+            <InfoHint
+              text="Hours already used in your 70-hour / 8-day cycle before this trip begins."
+              label="Hours already used in your 70-hour / 8-day cycle before this trip begins."
+            />
           </label>
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <GaugeIcon size={16} />
+              </span>
+              <input
+                id={`${id}-cycle`}
+                type="number"
+                min={0}
+                max={70}
+                step="0.5"
+                value={cycleUsed}
+                onChange={(e) => setCycleUsed(e.target.value)}
+                placeholder="0 – 70"
+                aria-invalid={!cycleValid && cycleUsed !== ""}
+                aria-describedby={remaining !== null ? `${id}-cycle-remaining` : undefined}
+                className={`w-full rounded-lg border px-9 py-2.5 text-sm outline-none transition focus:ring-2 ${
+                  cycleValid || cycleUsed === ""
+                    ? "border-slate-300 focus:border-brand-500 focus:ring-brand-100"
+                    : "border-red-300 focus:border-red-400 focus:ring-red-100"
+                }`}
+              />
+            </div>
+            <span className="flex-none text-xs font-medium text-slate-400">of 70 h</span>
+          </div>
           <input
-            id={`${id}-cycle`}
-            type="number"
+            type="range"
             min={0}
             max={70}
-            step="0.5"
-            value={cycleUsed}
+            step={0.5}
+            value={cycleValid ? cycleNumber : 0}
             onChange={(e) => setCycleUsed(e.target.value)}
-            placeholder="0 – 70"
-            aria-invalid={!cycleValid && cycleUsed !== ""}
-            aria-describedby={remaining !== null ? `${id}-cycle-remaining` : undefined}
-            className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition focus:ring-2 ${
-              cycleValid || cycleUsed === ""
-                ? "border-slate-300 focus:border-brand-500 focus:ring-brand-100"
-                : "border-red-300 focus:border-red-400 focus:ring-red-100"
-            }`}
+            aria-label={`Cycle used slider: ${cycleValid ? cycleNumber : 0} of 70 hours`}
+            className="mt-2.5 w-full accent-brand-600"
           />
           {remaining !== null && (
             <p id={`${id}-cycle-remaining`} className="mt-1.5 text-xs text-slate-500">
               Remaining 70/8 cycle:{" "}
-              <span className="font-semibold text-brand-600">
-                {remaining.toFixed(1)} h
-              </span>
+              <span className="font-semibold text-brand-600">{remaining.toFixed(1)} h</span>
             </p>
           )}
         </div>
 
         {/* Advanced trip info */}
-        <div>
+        <div className="rounded-lg border border-slate-100 bg-slate-50/60">
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
             aria-expanded={showAdvanced}
-            className="text-xs font-medium text-brand-600 hover:text-brand-700"
+            className="flex w-full items-center justify-between px-4 py-2.5 text-left"
           >
-            {showAdvanced ? "▾ Hide advanced trip information" : "▸ Advanced trip information (optional)"}
+            <span className="flex items-center gap-2 text-xs font-semibold text-night-800">
+              <SlidersIcon size={14} className="text-slate-400" />
+              Advanced trip information
+              <span className="font-normal text-slate-400">(optional)</span>
+            </span>
+            <span className="text-xs text-slate-400" aria-hidden="true">
+              {showAdvanced ? "▲" : "▼"}
+            </span>
           </button>
           {showAdvanced && (
-            <div className="mt-3 grid gap-4 rounded-lg bg-slate-50 p-4 sm:grid-cols-2">
-              <Field
+            <div className="grid gap-4 border-t border-slate-100 px-4 py-4 sm:grid-cols-2">
+              <PlainField
                 id={`${id}-start-date`}
                 label="Trip start date"
                 type="date"
                 value={advanced.start_date}
                 onChange={(v) => setAdvanced({ ...advanced, start_date: v })}
               />
-              <Field
+              <PlainField
                 id={`${id}-start-time`}
                 label="Trip start time (home terminal)"
                 type="time"
                 value={advanced.start_time}
                 onChange={(v) => setAdvanced({ ...advanced, start_time: v })}
               />
-              <Field
+              <PlainField
                 id={`${id}-driver`}
                 label="Driver name"
                 value={advanced.driver_name}
                 onChange={(v) => setAdvanced({ ...advanced, driver_name: v })}
               />
-              <Field
+              <PlainField
                 id={`${id}-carrier`}
                 label="Carrier name"
                 value={advanced.carrier_name}
                 onChange={(v) => setAdvanced({ ...advanced, carrier_name: v })}
               />
-              <Field
+              <PlainField
                 id={`${id}-truck`}
                 label="Truck / tractor no."
                 value={advanced.truck_number}
                 onChange={(v) => setAdvanced({ ...advanced, truck_number: v })}
               />
-              <Field
+              <PlainField
                 id={`${id}-trailer`}
                 label="Trailer no."
                 value={advanced.trailer_number}
                 onChange={(v) => setAdvanced({ ...advanced, trailer_number: v })}
               />
-              <Field
+              <PlainField
                 id={`${id}-office`}
                 label="Main office (city, state)"
                 value={advanced.main_office}
                 onChange={(v) => setAdvanced({ ...advanced, main_office: v })}
               />
+              <p className="text-[11px] leading-relaxed text-slate-400 sm:col-span-2">
+                Left blank = “Not provided” on the logs. Without a start time the plan assumes{" "}
+                <strong className="font-semibold text-slate-500">06:00 AM</strong> at the home
+                terminal and marks it on the results.
+              </p>
             </div>
           )}
         </div>
@@ -278,16 +346,22 @@ export default function TripPlannerForm({ isSubmitting, onSubmit }: Props) {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
+          <TruckIcon size={17} />
           {isSubmitting ? "Planning…" : "Plan Trip & Generate ELD Logs"}
         </button>
+
+        <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-slate-400">
+          Pick a US city from the suggestions or type any street address
+          <ArrowRightIcon size={11} />
+        </p>
       </div>
     </form>
   );
 }
 
-function Field({
+function PlainField({
   id,
   label,
   value,
@@ -313,7 +387,7 @@ function Field({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
       />
     </div>
   );

@@ -1,9 +1,11 @@
+@import "@fontsource-variable/inter";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  font-variation-settings: "opsz" 32;
 }
 
 html,
@@ -11,6 +13,11 @@ body,
 #root {
   min-height: 100%;
   background-color: #f4f6f8;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* Subtle scrollbar styling for long panels */
@@ -29,4 +36,30 @@ body,
 .leaflet-container {
   font-family: inherit;
   z-index: 0;
+}
+
+/* Popups inherit the app typography */
+.leaflet-popup-content-wrapper {
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(16, 24, 40, 0.18);
+}
+.leaflet-popup-content {
+  margin: 12px 14px;
+}
+
+/* Range slider (cycle control) */
+input[type="range"] {
+  accent-color: #1d7a4f;
+  cursor: pointer;
+}
+
+/* Hide number input spinners — cleaner with the slider paired */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

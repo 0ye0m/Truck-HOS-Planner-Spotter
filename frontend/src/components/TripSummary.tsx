@@ -1,33 +1,78 @@
 import type { PlanPayload } from "@/types";
+import {
+  BedIcon,
+  CalendarIcon,
+  ClockIcon,
+  FileTextIcon,
+  FlagIcon,
+  FuelIcon,
+  GaugeIcon,
+  MapPinIcon,
+  PackageIcon,
+  RotateCcwIcon,
+  RouteIcon,
+} from "@/components/icons";
 
 function Stat({
   label,
   value,
+  sub,
+  icon,
   accent = false,
 }: {
   label: string;
   value: string;
+  sub?: string;
+  icon: React.ReactNode;
   accent?: boolean;
 }) {
   return (
     <div
-      className={`rounded-xl border px-4 py-3 ${
+      className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
         accent
           ? "border-brand-200 bg-brand-50"
           : "border-slate-200 bg-white shadow-card"
       }`}
     >
-      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
-      <p
-        className={`mt-1 text-lg font-bold ${
-          accent ? "text-brand-700" : "text-night-900"
+      <span
+        className={`mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-lg ${
+          accent ? "bg-brand-100 text-brand-700" : "bg-slate-100 text-slate-500"
         }`}
       >
-        {value}
-      </p>
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+          {label}
+        </p>
+        <p
+          className={`mt-0.5 text-lg font-bold leading-tight tabular-nums ${
+            accent ? "text-brand-700" : "text-night-900"
+          }`}
+        >
+          {value}
+        </p>
+        {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
+      </div>
     </div>
+  );
+}
+
+function Chip({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 shadow-card">
+      <span className="text-slate-400">{icon}</span>
+      <span className="font-semibold tabular-nums text-night-900">{value}</span>
+      {label}
+    </span>
   );
 }
 
@@ -75,44 +120,108 @@ export default function TripSummary({ payload }: { payload: PlanPayload }) {
   const homeTz = trip.home_terminal_timezone;
 
   return (
-    <section className="mt-6" aria-label="Trip summary">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
-        <h2 className="text-base font-semibold text-night-900">Trip Summary</h2>
+    <section className="mt-8" aria-label="Trip summary">
+      {/* Route banner: the three stops in order */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-1 pb-3 text-sm">
+        <h2 className="sr-only">Trip summary</h2>
+        <span className="inline-flex items-center gap-1.5 font-semibold text-night-900">
+          <MapPinIcon size={15} className="text-brand-600" />
+          {trip.current_location}
+        </span>
+        <Arrow />
+        <span className="inline-flex items-center gap-1.5 text-night-800">
+          <PackageIcon size={15} className="text-amber-600" />
+          {trip.pickup_location}
+        </span>
+        <Arrow />
+        <span className="inline-flex items-center gap-1.5 text-night-800">
+          <FlagIcon size={15} className="text-red-600" />
+          {trip.dropoff_location}
+        </span>
         {trip.assumed_start_time && (
-          <span className="rounded-full bg-slate-200/70 px-3 py-1 text-[11px] font-medium text-slate-600">
-            Assumed start time 06:00 (home terminal) — adjust in advanced
-            options
+          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-slate-200/70 px-3 py-1 text-[11px] font-medium text-slate-600">
+            <ClockIcon size={11} />
+            Assumed start 06:00 (home terminal) — adjust in advanced options
           </span>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+
+      {/* Hero stats */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
           label="Route distance"
           value={`${route.distance_miles.toFixed(0)} mi`}
+          icon={<RouteIcon size={17} />}
+          sub={`via ${route.provider}`}
           accent
         />
         <Stat
           label="Driving time"
           value={`${hos_summary.total_driving_hours.toFixed(1)} h`}
+          icon={<GaugeIcon size={17} />}
+          sub="sum of all driving legs"
           accent
         />
         <Stat
           label="Trip duration (HOS)"
           value={fmtHours(tripDurationHours)}
+          icon={<ClockIcon size={17} />}
+          sub="includes breaks & rests"
         />
         <Stat
           label="ETA at dropoff"
           value={schedule.end ? fmtEta(schedule.end, homeTz) : "—"}
+          icon={<CalendarIcon size={17} />}
+          sub={`home-terminal time · ${homeTz.replace(/_/g, " ")}`}
         />
-        <Stat label="Fuel stops" value={String(fuelStops)} />
-        <Stat label="Overnight rests" value={String(restStops)} />
-        <Stat label="Total on-duty" value={`${hos_summary.total_on_duty_hours.toFixed(1)} h`} />
-        <Stat
-          label={logs.length > 1 ? "Daily log sheets" : "Daily log sheets"}
+      </div>
+
+      {/* Secondary facts */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Chip icon={<FuelIcon size={13} />} label="fuel stops" value={String(fuelStops)} />
+        <Chip
+          icon={<BedIcon size={13} />}
+          label="overnight rests"
+          value={String(restStops)}
+        />
+        {restarts > 0 && (
+          <Chip
+            icon={<RotateCcwIcon size={13} />}
+            label="34-hr restarts"
+            value={String(restarts)}
+          />
+        )}
+        <Chip
+          icon={<FileTextIcon size={13} />}
+          label={`daily log sheet${logs.length === 1 ? "" : "s"}`}
           value={String(logs.length)}
         />
-        {restarts > 0 && <Stat label="34-hr restarts" value={String(restarts)} />}
+        <Chip
+          icon={<GaugeIcon size={13} />}
+          label="total on-duty"
+          value={`${hos_summary.total_on_duty_hours.toFixed(1)} h`}
+        />
       </div>
     </section>
+  );
+}
+
+function Arrow() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="text-slate-300"
+    >
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </svg>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDownIcon, ListIcon } from "@/components/icons";
 import type { PlanPayload } from "@/types";
 
 /**
@@ -29,14 +30,21 @@ export default function RouteInstructions({ payload }: { payload: PlanPayload })
             <div key={leg.leg_index} className="mb-3 last:mb-0">
               <button
                 onClick={() => setOpenLeg(open ? null : index)}
-                className="flex w-full items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5 text-left transition hover:bg-slate-100"
+                aria-expanded={open}
+                className="flex w-full items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-left transition hover:bg-slate-100"
               >
-                <span className="text-sm font-semibold text-night-900">
-                  {legEndpoints[index] ?? `Leg ${index + 1}`}
+                <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-night-900">
+                  <ListIcon size={14} className="flex-none text-slate-400" />
+                  <span className="truncate">
+                    {legEndpoints[index] ?? `Leg ${index + 1}`}
+                  </span>
                 </span>
-                <span className="text-xs text-slate-500">
-                  {leg.distance_miles.toFixed(0)} mi ·{" "}
-                  {open ? "▲" : "▼"}
+                <span className="flex flex-none items-center gap-2 text-xs tabular-nums text-slate-500">
+                  {leg.distance_miles.toFixed(0)} mi
+                  <ChevronDownIcon
+                    size={14}
+                    className={`transition-transform ${open ? "rotate-180" : ""}`}
+                  />
                 </span>
               </button>
               {open && (
@@ -47,10 +55,10 @@ export default function RouteInstructions({ payload }: { payload: PlanPayload })
                     </li>
                   )}
                   {leg.steps.map((step, i) => (
-                    <li key={i} className="text-xs text-slate-600">
+                    <li key={i} className="text-xs leading-relaxed text-slate-600">
                       {step.instruction}
                       {step.distance_miles > 0.1 && (
-                        <span className="ml-1 text-slate-400">
+                        <span className="ml-1 tabular-nums text-slate-400">
                           ({step.distance_miles.toFixed(1)} mi)
                         </span>
                       )}

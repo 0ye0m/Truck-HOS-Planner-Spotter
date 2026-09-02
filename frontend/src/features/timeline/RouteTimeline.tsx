@@ -3,17 +3,46 @@ import type { Activity, PlanPayload } from "@/types";
 /**
  * Chronological trip timeline grouped by calendar day, rendered directly
  * from the canonical schedule activities (same data as the ELD logs).
+ * Each day header shows aggregate miles / driving hours — mirroring the
+ * per-day totals on the generated log sheets.
  */
 
-const STATUS_STYLES: Record<string, { dot: string; text: string; label: string }> = {
-  OFF_DUTY: { dot: "bg-slate-300", text: "text-slate-600", label: "Off Duty" },
-  SLEEPER_BERTH: { dot: "bg-indigo-400", text: "text-indigo-700", label: "Sleeper Berth" },
-  DRIVING: { dot: "bg-brand-500", text: "text-brand-700", label: "Driving" },
+const STATUS_STYLES: Record<
+  string,
+  { dot: string; text: string; label: string; badge: string }
+> = {
+  OFF_DUTY: {
+    dot: "bg-slate-300",
+    text: "text-slate-600",
+    label: "Off Duty",
+    badge: "bg-slate-100 text-slate-600",
+  },
+  SLEEPER_BERTH: {
+    dot: "bg-indigo-400",
+    text: "text-indigo-700",
+    label: "Sleeper Berth",
+    badge: "bg-indigo-50 text-indigo-700",
+  },
+  DRIVING: {
+    dot: "bg-brand-500",
+    text: "text-brand-700",
+    label: "Driving",
+    badge: "bg-brand-100 text-brand-700",
+  },
   ON_DUTY_NOT_DRIVING: {
     dot: "bg-amber-500",
     text: "text-amber-700",
     label: "On Duty",
+    badge: "bg-amber-50 text-amber-700",
   },
+};
+
+/** ELD-grid style one-letter status codes (R - S - D - O mirrors the log). */
+const DUTY_CODE: Record<string, string> = {
+  OFF_DUTY: "OFF",
+  SLEEPER_BERTH: "SB",
+  DRIVING: "D",
+  ON_DUTY_NOT_DRIVING: "ON",
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -48,6 +77,23 @@ function activityTitle(a: Activity): string {
   return TYPE_LABELS[a.type] ?? a.label;
 }
 
+function DaySummary({ items }: { items: Activity[] }) {
+  const miles = items.reduce((sum, a) => sum + a.distance_miles, 0);
+  const drivingMin = items
+    .filter((a) => a.duty_status === "DRIVING")
+    .reduce((sum, a) => sum + a.duration_minutes, 0);
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-slate-600">
+        {miles.toFixed(0)} mi
+      </span>
+      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-slate-600">
+        {(drivingMin / 60).toFixed(1)} h driving
+      </span>
+    </div>
+  );
+}
+
 export default function RouteTimeline({ payload }: { payload: PlanPayload }) {
   const { activities } = payload.schedule;
   const homeTz = payload.trip.home_terminal_timezone;
@@ -63,7 +109,7 @@ export default function RouteTimeline({ payload }: { payload: PlanPayload }) {
     <div className="thin-scroll max-h-[560px] overflow-y-auto px-5 py-4">
       {[...days.entries()].map(([day, items], dayIndex) => (
         <div key={day} className={dayIndex > 0 ? "mt-6" : ""}>
-          <div className="sticky top-0 z-10 -mx-5 mb-3 bg-white/95 px-5 py-1.5 backdrop-blur">
+          <div className="sticky top-0 z-10 -mx-5 mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-white/95 px-5 py-2 backdrop-blur">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Day {dayIndex + 1} ·{" "}
               {new Date(day + "T12:00:00").toLocaleDateString(undefined, {
@@ -72,6 +118,7 @@ export default function RouteTimeline({ payload }: { payload: PlanPayload }) {
                 day: "numeric",
               })}
             </p>
+            <DaySummary items={items} />
           </div>
           <ol className="relative ml-2 border-l-2 border-slate-100">
             {items.map((a) => {
@@ -82,21 +129,29 @@ export default function RouteTimeline({ payload }: { payload: PlanPayload }) {
                   <span
                     className={`absolute -left-[7px] mt-1.5 h-3 w-3 rounded-full border-2 border-white ${style.dot}`}
                   />
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                    <p className="text-sm font-semibold text-night-900">
-                      {fmtTime(a.start, homeTz)}{" "}
-                      <span className={`ml-1 ${style.text}`}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <p className="flex items-baseline gap-2">
+                      <span className="text-sm font-semibold tabular-nums text-night-900">
+                        {fmtTime(a.start, homeTz)}
+                      </span>
+                      <span
+                        className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide ${style.badge}`}
+                        title={style.label}
+                      >
+                        {DUTY_CODE[a.duty_status] ?? "OFF"}
+                      </span>
+                      <span className={`text-sm ${style.text}`}>
                         {activityTitle(a)}
                       </span>
                     </p>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs tabular-nums text-slate-400">
                       {fmtDuration(a.duration_minutes)}
                       {a.distance_miles > 0 &&
                         ` · ${a.distance_miles.toFixed(0)} mi`}
                     </span>
                   </div>
                   {a.location && a.location !== "En route" && (
-                    <p className="text-xs text-slate-500">{a.location}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{a.location}</p>
                   )}
                 </li>
               );

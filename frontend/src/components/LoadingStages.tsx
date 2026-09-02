@@ -1,5 +1,18 @@
 import { useEffect, useState } from "react";
 import { LOADING_STAGES } from "@/services/api";
+import {
+  FileTextIcon,
+  GaugeIcon,
+  MapPinIcon,
+  RouteIcon,
+} from "@/components/icons";
+
+const STAGE_ICONS = [
+  <MapPinIcon key="pin" size={14} />,
+  <RouteIcon key="route" size={14} />,
+  <GaugeIcon key="gauge" size={14} />,
+  <FileTextIcon key="file" size={14} />,
+];
 
 /**
  * Staged loading feedback: "Calculating route…" → "Checking HOS…" →
@@ -18,7 +31,7 @@ export default function LoadingStages() {
 
   return (
     <div
-      className="rounded-xl border border-slate-200 bg-white p-6 shadow-card"
+      className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-card"
       role="status"
       aria-live="polite"
     >
@@ -37,20 +50,21 @@ export default function LoadingStages() {
           />
         ))}
       </div>
-      <div className="mt-4 flex gap-2 text-[11px]">
+      <ol className="mt-4 flex flex-wrap gap-2 text-[11px]">
         {LOADING_STAGES.map((label, i) => (
-          <span
+          <li
             key={label}
-            className={`rounded-full px-2 py-0.5 ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
               i <= stage
                 ? "bg-brand-50 font-medium text-brand-700"
                 : "bg-slate-100 text-slate-400"
             }`}
           >
-            {i + 1}. {label.replace("…", "")}
-          </span>
+            {STAGE_ICONS[i]}
+            {label.replace("…", "")}
+          </li>
         ))}
-      </div>
+      </ol>
     </div>
   );
 }

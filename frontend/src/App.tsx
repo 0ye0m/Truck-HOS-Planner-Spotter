@@ -11,6 +11,7 @@ import EmptyState from "@/components/EmptyState";
 import LoadingStages from "@/components/LoadingStages";
 import ErrorState from "@/components/ErrorState";
 import AssumptionsPanel from "@/components/AssumptionsPanel";
+import { ClockIcon, MapPinIcon } from "@/components/icons";
 import type { PlanPayload } from "@/types";
 import { usePlanTrip } from "@/hooks/usePlanTrip";
 import { friendlyError } from "@/services/api";
@@ -22,11 +23,11 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100 text-slate-800">
+    <div className="flex min-h-screen flex-col bg-slate-100 text-slate-800">
       <Header />
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
-        {/* Top row: planner form + HOS availability */}
+        {/* Step 1 — inputs */}
         <div className="grid gap-6 lg:grid-cols-5">
           <section className="lg:col-span-3">
             <TripPlannerForm
@@ -46,55 +47,37 @@ export default function App() {
           </section>
         </div>
 
-        {isPending && (
-          <div className="mt-6">
-            <LoadingStages />
-          </div>
-        )}
+        {isPending && <LoadingStages />}
 
-        {error && (
-          <div className="mt-6">
-            <ErrorState message={friendlyError(error)} onRetry={() => reset()} />
-          </div>
-        )}
+        {error && <ErrorState message={friendlyError(error)} onRetry={() => reset()} />}
 
-        {!result && !isPending && !error && (
-          <div className="mt-6">
-            <EmptyState />
-          </div>
-        )}
+        {!result && !isPending && !error && <EmptyState />}
 
         {result && (
           <>
             {/* Trip summary strip */}
             <TripSummary payload={result} />
 
-            {/* Map */}
-            <section className="mt-6 rounded-xl border border-slate-200 bg-white shadow-card">
-              <div className="border-b border-slate-100 px-5 py-4">
-                <h2 className="text-base font-semibold text-night-900">
-                  Route Map
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Route, stops and overnight rests — powered by OpenStreetMap &amp; OSRM
-                </p>
-              </div>
+            {/* Route map */}
+            <SectionCard
+              title="Route Map"
+              icon={<MapPinIcon size={15} />}
+              description="Route, stops and overnight rests — powered by OpenStreetMap & OSRM"
+              className="mt-8"
+            >
               <RouteMap payload={result} />
-            </section>
+            </SectionCard>
 
             {/* Timeline + instructions */}
-            <div className="mt-6 grid gap-6 lg:grid-cols-5">
-              <section className="rounded-xl border border-slate-200 bg-white shadow-card lg:col-span-3">
-                <div className="border-b border-slate-100 px-5 py-4">
-                  <h2 className="text-base font-semibold text-night-900">
-                    Route Timeline
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Chronological schedule — same canonical data as the ELD logs
-                  </p>
-                </div>
+            <div className="mt-8 grid gap-6 lg:grid-cols-5">
+              <SectionCard
+                title="Route Timeline"
+                icon={<ClockIcon size={15} />}
+                description="Chronological schedule — same canonical data as the ELD logs"
+                className="lg:col-span-3"
+              >
                 <RouteTimeline payload={result} />
-              </section>
+              </SectionCard>
               <RouteInstructions payload={result} />
             </div>
 
@@ -121,18 +104,51 @@ export default function App() {
   );
 }
 
+function SectionCard({
+  title,
+  description,
+  icon,
+  className = "",
+  children,
+}: {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className={`overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card ${className}`}
+    >
+      <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+          {icon}
+        </span>
+        <div>
+          <h2 className="text-base font-semibold leading-tight text-night-900">
+            {title}
+          </h2>
+          <p className="text-xs text-slate-500">{description}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function HosSummaryPlaceholder() {
   return (
     <div className="flex h-full min-h-[320px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white/60 p-8 text-center shadow-card">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-2xl">
-        🕒
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+        <ClockIcon size={24} />
       </div>
       <h3 className="mt-3 text-sm font-semibold text-night-900">
         HOS availability
       </h3>
-      <p className="mt-1 max-w-xs text-xs text-slate-500">
-        Plan a trip to see the 70/8 cycle, 14-hour window and driving hours
-        used and remaining.
+      <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">
+        Plan a trip to see the 70/8 cycle, 11-hour driving limit and 14-hour
+        window — used and remaining, computed live.
       </p>
     </div>
   );
