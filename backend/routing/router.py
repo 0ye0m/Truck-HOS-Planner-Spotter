@@ -27,6 +27,8 @@ class RouteStep:
     name: str
     distance_miles: float
     maneuver: str
+    modifier: str = ""
+    exit_number: int | None = None
 
 
 @dataclass
@@ -53,32 +55,80 @@ class RoutingError(Exception):
         self.kind = kind
 
 
+# Human phrasing per modifier — mirrors commercial navigation wording.
+_TURN_PHRASE = {
+    "left": "Turn left",
+    "right": "Turn right",
+    "slight left": "Bear slight left",
+    "slight right": "Bear slight right",
+    "sharp left": "Take a sharp left",
+    "sharp right": "Take a sharp right",
+    "straight": "Continue straight",
+    "uturn": "Make a U-turn",
+}
+
+
 def _instruction_from_step(step: dict) -> str:
+    """Industry-grade spoken instruction from an OSRM step.
+
+    Handles turn modifiers, roundabout exits, ramps, forks and arrival side
+    so instructions read like a commercial truck navigation unit instead of
+    raw maneuver codes.
+    """
     maneuver = step.get("maneuver", {}) or {}
     maneuver_type = maneuver.get("type", "")
     modifier = maneuver.get("modifier", "")
-    name = step.get("name", "") or ""
+    name = (step.get("name", "") or "").strip()
+    destinations = (step.get("destinations", "") or "").strip()
+    rotary_name = (step.get("rotary_name", "") or "").strip()
+    exit_num = maneuver.get("exit")
+
+    ordinal = ""
+    if isinstance(exit_num, int) and exit_num > 0:
+        ordinal = _ordinal(exit_num)
+
     if maneuver_type == "depart":
-        return f"Start on {name}" if name else "Start"
+        return f"Head out on {name}" if name else "Start your route"
     if maneuver_type == "arrive":
-        return "Arrive at destination"
-    if maneuver_type == "roundabout" or maneuver_type == "rotary":
-        return f"Take the roundabout onto {name}" if name else "Take the roundabout"
+        side_phrase = {
+            "left": " — destination is on your left",
+            "right": " — destination is on your right",
+        }.get(modifier, "")
+        return f"Arrive at destination{side_phrase}"
+    if maneuver_type in ("roundabout", "rotary"):
+        exit_part = f" and take the {ordinal} exit" if ordinal else ""
+        onto = f" onto {name}" if name else ""
+        return f"At the roundabout{exit_part}{onto}"
     if maneuver_type == "merge":
         return f"Merge onto {name}" if name else "Merge"
     if maneuver_type == "on ramp":
-        return f"Take the ramp onto {name}" if name else "Take the ramp"
+        target = destinations or name
+        return f"Take the ramp onto {target}" if target else "Take the ramp"
     if maneuver_type == "off ramp":
-        return f"Take the exit towards {name}" if name else "Take the exit"
+        target = destinations or name
+        return f"Take the exit toward {target}" if target else "Take the exit"
     if maneuver_type == "fork":
-        return f"Keep {modifier} onto {name}".strip() if name else f"Keep {modifier}"
+        base = _TURN_PHRASE.get(modifier, f"Keep {modifier or 'straight'}")
+        return f"{base} to stay on {name}" if name else base
     if maneuver_type == "end of road":
-        return f"Turn {modifier} onto {name}".strip()
+        base = _TURN_PHRASE.get(modifier, f"Turn {modifier or 'right'}")
+        return f"{base} onto {name}" if name else base
     if maneuver_type == "new name":
         return f"Continue onto {name}" if name else "Continue"
-    if maneuver_type in ("turn",):
-        return f"Turn {modifier} onto {name}".strip() if name else f"Turn {modifier}"
+    if maneuver_type == "turn":
+        base = _TURN_PHRASE.get(modifier, f"Turn {modifier or 'right'}")
+        return f"{base} onto {name}" if name else base
+    if maneuver_type == "continue" and modifier == "uturn":
+        return f"Make a U-turn onto {name}" if name else "Make a U-turn"
     return f"Continue on {name}" if name else "Continue"
+
+
+def _ordinal(n: int) -> str:
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
 
 
 class RoutingService:
@@ -137,6 +187,8 @@ class RoutingService:
                     name=(step.get("name") or ""),
                     distance_miles=(step.get("distance", 0.0) / METERS_PER_MILE),
                     maneuver=((step.get("maneuver") or {}).get("type") or ""),
+                    modifier=((step.get("maneuver") or {}).get("modifier") or ""),
+                    exit_number=(step.get("maneuver") or {}).get("exit"),
                 )
                 for step in leg.get("steps", [])
             ]

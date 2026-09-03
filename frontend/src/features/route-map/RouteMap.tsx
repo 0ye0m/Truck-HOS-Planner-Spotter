@@ -21,12 +21,15 @@ import {
  * from the canonical schedule. Markers are circular SVG badges; clicking a
  * stop shows type, location, arrival, departure, duration and reason.
  *
- * Interaction policy (route always stays in context):
- *  - Mouse wheel does NOTHING on the map (page scroll stays native).
- *  - One-finger drag / map panning is disabled.
- *  - Zooming is only possible via the +/− buttons or pinch gestures.
- *  - Hard maxBounds around the route (viscosity 1.0) make it impossible
- *    to zoom or pan the route out of view, and popups never auto-pan.
+ * Interaction policy (full control, route never lost):
+ *  - The map is INERT until the user clicks/taps it (Google-embed pattern):
+ *    page scroll and one-finger touch scroll pass straight through, so the
+ *    map can never hijack scrolling or drift out of route context.
+ *  - After activation: drag-to-pan (with inertia), scroll-wheel zoom,
+ *    double-click zoom, keyboard pan/zoom, and pinch zoom on touch.
+ *  - A floating "Recenter on route" chip appears whenever the route is not
+ *    fully in view, so the context is always one tap away.
+ *  - Very generous maxBounds keep wild pans near the route corridor.
  */
 
 const MARKER_STYLES: Record<
@@ -81,14 +84,23 @@ const ROUTE_COLOR = "#276EF1";
 const MIN_ZOOM = 4;
 const MAX_ZOOM = 16;
 
-/** Route bounds generously padded — the hard limit the map can never leave. */
+/** Actual route extent (used to detect "route fully in view"). */
 function routeBounds(geometry: [number, number][]): L.LatLngBounds | null {
   if (geometry.length < 2) return null;
-  const bounds = L.latLngBounds(geometry.map(([lat, lon]) => L.latLng(lat, lon)));
-  const sw = bounds.getSouthWest();
-  const ne = bounds.getNorthEast();
-  const padLat = Math.max((ne.lat - sw.lat) * 0.35, 0.6);
-  const padLon = Math.max((ne.lng - sw.lng) * 0.35, 0.6);
+  return L.latLngBounds(geometry.map(([lat, lon]) => L.latLng(lat, lon)));
+}
+
+/**
+ * Very generous roaming area: route extent padded 150% per side (min 2°)
+ * so the user can explore the corridor freely but never wander off to
+ * another region entirely.
+ */
+function roamingBounds(core: L.LatLngBounds | null): L.LatLngBounds | null {
+  if (!core) return null;
+  const sw = core.getSouthWest();
+  const ne = core.getNorthEast();
+  const padLat = Math.max((ne.lat - sw.lat) * 1.5, 2);
+  const padLon = Math.max((ne.lng - sw.lng) * 1.5, 2);
   return L.latLngBounds(
     [sw.lat - padLat, sw.lng - padLon],
     [ne.lat + padLat, ne.lng + padLon]
@@ -103,16 +115,20 @@ function fitToRoute(map: L.Map, geometry: [number, number][]) {
 
 /**
  * Mount-time sizing + fit, and keep the canvas in sync with layout changes
- * (accordions, window resizes) so tiles never render stale/clipped.
+ * (accordions, window resizes) so tiles never render stale/clipped. Once
+ * the user has taken manual control (activated) we only invalidateSize —
+ * the viewport is theirs.
  */
 function MapSetup({
   geometry,
   wrapperRef,
   onMap,
+  activatedRef,
 }: {
   geometry: [number, number][];
   wrapperRef: React.RefObject<HTMLDivElement>;
   onMap: (map: L.Map) => void;
+  activatedRef: React.MutableRefObject<boolean>;
 }) {
   const map = useMap();
   const fitted = useRef(false);
@@ -141,11 +157,11 @@ function MapSetup({
       if (next === last) return;
       last = next;
       map.invalidateSize();
-      if (geometry.length > 1) fitToRoute(map, geometry);
+      if (!activatedRef.current && geometry.length > 1) fitToRoute(map, geometry);
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [map, geometry, wrapperRef]);
+  }, [map, geometry, wrapperRef, activatedRef]);
 
   return null;
 }
@@ -184,6 +200,16 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
     () => typeof window === "undefined" || window.innerWidth >= 640
   );
 
+  // ---- interaction state -------------------------------------------------
+  // Inert until the user explicitly clicks the map (Google-embed pattern).
+  const [activated, setActivated] = useState(false);
+  const activatedRef = useRef(false);
+  const [showHint, setShowHint] = useState(false);
+  const [routeInView, setRouteInView] = useState(true);
+
+  const coreBounds = useMemo(() => routeBounds(route.geometry), [route.geometry]);
+  const maxBounds = useMemo(() => roamingBounds(coreBounds), [coreBounds]);
+
   // Current-location marker: first coordinate of the route. The dropoff
   // endpoint does NOT get an extra marker here — the canonical schedule
   // already provides a DROPOFF marker with full popup details.
@@ -195,16 +221,94 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
     .filter((m) => m.lat !== null && m.lon !== null)
     .map((m) => ({ marker: m, major: majorTypes.has(m.type) }));
 
-  const maxBounds = useMemo(() => routeBounds(route.geometry), [route.geometry]);
-
   const handleMap = useMemo(
     () => (map: L.Map) => {
       mapRef.current = map;
+      // QA/debugging handle — lets live tests assert on real map state.
+      if (typeof window !== "undefined") {
+        (window as unknown as { __tripMap?: L.Map }).__tripMap = map;
+      }
       setZoomLevel(map.getZoom());
       map.on("zoomend", () => setZoomLevel(map.getZoom()));
     },
     []
   );
+
+  // Enable/disable Leaflet interaction handlers on activation.
+  // (react-leaflet v4 treats these options as init-only, so we toggle the
+  // handlers directly — the reliable path.)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    activatedRef.current = activated;
+    const toggle = (handler: { enable(): void; disable(): void }, on: boolean) =>
+      on ? handler.enable() : handler.disable();
+    toggle(map.dragging, activated);
+    toggle(map.doubleClickZoom, activated);
+    toggle(map.keyboard, activated);
+    // touchZoom (pinch) stays enabled at all times — a deliberate gesture.
+  }, [activated]);
+
+  // Recenter affordance: show a chip whenever the route is not fully in
+  // view so the context is always one tap away.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const check = () => {
+      if (!coreBounds) return;
+      try {
+        setRouteInView(map.getBounds().contains(coreBounds));
+      } catch {
+        /* zero-size bounds during transitions — ignore */
+      }
+    };
+    map.on("moveend", check);
+    map.on("zoomend", check);
+    check();
+    return () => {
+      map.off("moveend", check);
+      map.off("zoomend", check);
+    };
+  }, [coreBounds]);
+
+  // Wheel zoom — non-passive listener on the wrapper. Before activation the
+  // handler is a no-op: the page scrolls naturally and the map never
+  // hijacks scrolling. After activation the wheel zooms the map
+  // (ctrl+wheel = trackpad pinch, finer threshold).
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    let accum = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onWheel = (e: WheelEvent) => {
+      const map = mapRef.current;
+      if (!map || !activatedRef.current) return; // page scroll stays native
+      e.preventDefault();
+      const pinch = e.ctrlKey || e.metaKey;
+      accum += e.deltaY;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => (accum = 0), 180);
+      const threshold = pinch ? 12 : 55;
+      if (Math.abs(accum) >= threshold) {
+        const steps = Math.max(1, Math.min(3, Math.round(Math.abs(accum) / 110)));
+        if (accum < 0) map.zoomIn(steps);
+        else map.zoomOut(steps);
+        accum = 0;
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  const activate = () => {
+    if (activated) return;
+    setActivated(true);
+    setShowHint(true);
+    window.setTimeout(() => setShowHint(false), 4500);
+  };
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -213,7 +317,7 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
   }, [markers]);
 
   return (
-    <div ref={wrapperRef} className="relative h-[400px] w-full sm:h-[520px]">
+    <div ref={wrapperRef} className="relative h-[400px] w-full select-none sm:h-[520px]">
       <MapContainer
         center={[39.5, -86.0]}
         zoom={6}
@@ -227,7 +331,7 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
         keyboard={false}
         zoomControl={false}
         maxBounds={maxBounds ?? undefined}
-        maxBoundsViscosity={1.0}
+        maxBoundsViscosity={0.6}
         className="h-full w-full rounded-b-xl"
         attributionControl
       >
@@ -235,7 +339,12 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapSetup geometry={route.geometry} wrapperRef={wrapperRef} onMap={handleMap} />
+        <MapSetup
+          geometry={route.geometry}
+          wrapperRef={wrapperRef}
+          onMap={handleMap}
+          activatedRef={activatedRef}
+        />
 
         {/* White casing under the colored route for contrast on busy tiles */}
         <Polyline
@@ -288,8 +397,49 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
         ))}
       </MapContainer>
 
-      {/* Zoom + fit controls (the ONLY way to move the viewport) */}
-      <div className="absolute right-3 top-3 z-[500] flex flex-col gap-1.5">
+      {/* Activation overlay — the map is inert until the first click/tap.
+          touch-action:pan-y keeps vertical page scrolling native on touch. */}
+      {!activated && (
+        <button
+          type="button"
+          onClick={activate}
+          aria-label="Activate map interaction: drag to pan, scroll or pinch to zoom"
+          className="absolute inset-0 z-[560] flex cursor-pointer items-center justify-center bg-night-900/0 transition-colors hover:bg-night-900/[.03]"
+          style={{ touchAction: "pan-y" }}
+        >
+          <span className="pointer-events-none flex items-center gap-2 rounded-full border border-line bg-white/95 px-4 py-2 text-xs font-semibold text-night-800 shadow-pop">
+            <MapPinIcon size={14} className="text-brand-600" />
+            Click to interact — drag to pan, scroll or pinch to zoom
+          </span>
+        </button>
+      )}
+
+      {/* Post-activation controls hint (auto-fades) */}
+      {showHint && (
+        <div
+          role="status"
+          className="pointer-events-none absolute left-1/2 top-3 z-[560] -translate-x-1/2 rounded-full bg-night-900/85 px-4 py-1.5 text-[11px] font-medium text-white shadow-pop"
+        >
+          Drag to pan · scroll to zoom · double-click to zoom in
+        </div>
+      )}
+
+      {/* Recenter chip — appears when the route is not fully in view */}
+      {activated && !routeInView && (
+        <button
+          type="button"
+          onClick={() => {
+            if (mapRef.current) fitToRoute(mapRef.current, route.geometry);
+          }}
+          className="absolute bottom-16 left-1/2 z-[560] flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-2 text-[11px] font-semibold text-night-800 shadow-pop transition hover:border-ink hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+        >
+          <CrosshairIcon size={13} className="text-brand-600" />
+          Recenter on route
+        </button>
+      )}
+
+      {/* Zoom + fit controls (usable even before activation) */}
+      <div className="absolute right-3 top-3 z-[570] flex flex-col gap-1.5">
         <button
           type="button"
           aria-label="Zoom in"
@@ -327,7 +477,7 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
       </div>
 
       {/* Compact collapsible legend */}
-      <div className="absolute bottom-3 left-3 z-[500] max-w-[calc(100%-5.5rem)] overflow-hidden rounded-lg border border-line bg-white/95 shadow-pop backdrop-blur">
+      <div className="absolute bottom-3 left-3 z-[570] max-w-[calc(100%-5.5rem)] overflow-hidden rounded-lg border border-line bg-white/95 shadow-pop backdrop-blur">
         <button
           type="button"
           onClick={() => setLegendOpen((v) => !v)}

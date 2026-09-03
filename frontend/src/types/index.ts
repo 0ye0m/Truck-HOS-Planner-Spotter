@@ -23,6 +23,10 @@ export interface RouteStep {
   instruction: string;
   name: string;
   distance_miles: number;
+  /** OSRM maneuver type — absent on trips planned before this field shipped. */
+  maneuver?: string;
+  /** OSRM maneuver modifier (left/right/slight/sharp/uturn…). */
+  modifier?: string;
 }
 
 export interface RouteLeg {

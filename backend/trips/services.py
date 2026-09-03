@@ -310,6 +310,8 @@ class TripPlanner:
                             "instruction": s.instruction,
                             "name": s.name,
                             "distance_miles": round(s.distance_miles, 1),
+                            "maneuver": s.maneuver,
+                            "modifier": s.modifier,
                         }
                         for s in steps
                     ],

@@ -76,7 +76,7 @@ export default function App() {
             <SectionCard
               title="Route map"
               icon={<MapPinIcon size={15} />}
-              description="Route, stops and overnight rests — powered by OpenStreetMap & OSRM"
+              description="Click the map to explore — route, stops and overnight rests (OpenStreetMap & OSRM)"
               className="mt-8"
             >
               <RouteMap key={result.trip.id} payload={result} />
