@@ -3,8 +3,8 @@
   "buildCommand": "cd frontend && bun install && bun run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://REPLACE-WITH-YOUR-BACKEND.onrender.com/api/$1" },
-    { "source": "/media/(.*)", "destination": "https://REPLACE-WITH-YOUR-BACKEND.onrender.com/media/$1" },
+    { "source": "/api/(.*)", "destination": "https://truckhos-backend.onrender.com/api/$1" },
+    { "source": "/media/(.*)", "destination": "https://truckhos-backend.onrender.com/media/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
