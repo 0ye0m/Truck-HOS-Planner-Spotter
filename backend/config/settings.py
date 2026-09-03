@@ -6,20 +6,33 @@ Environment driven: copy .env.example to .env and adjust.
 
 import os
 from pathlib import Path
-
 from dotenv import load_dotenv
+
+
+# ------------------------------------------------------------------
+# Base configuration
+# ------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-insecure-key-change-me")
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "dev-only-insecure-key-change-me",
+)
+
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
+
 ALLOWED_HOSTS = [
     h.strip()
-    for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
+    for h in os.getenv(
+        "DJANGO_ALLOWED_HOSTS",
+        "localhost,127.0.0.1,0.0.0.0",
+    ).split(",")
     if h.strip()
 ]
+
 
 # ------------------------------------------------------------------
 # Application definition
@@ -32,12 +45,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+
     # Third party
     "rest_framework",
     "corsheaders",
+
     # Local apps
     "trips",
 ]
+
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -51,7 +67,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+
 ROOT_URLCONF = "config.urls"
+
 
 TEMPLATES = [
     {
@@ -68,10 +86,14 @@ TEMPLATES = [
     },
 ]
 
+
 WSGI_APPLICATION = "config.wsgi.application"
 
+
 # ------------------------------------------------------------------
-# Database (SQLite for development; set DATABASE_URL for PostgreSQL in prod)
+# Database
+# SQLite for development.
+# PostgreSQL when DATABASE_URL is provided in production.
 # ------------------------------------------------------------------
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
@@ -80,6 +102,7 @@ if DATABASE_URL.startswith("postgres"):
     import urllib.parse as urlparse
 
     parsed = urlparse.urlparse(DATABASE_URL)
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -90,18 +113,23 @@ if DATABASE_URL.startswith("postgres"):
             "PORT": parsed.port or 5432,
         }
     }
+
 else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            # SQLITE_PATH lets containers put the file on a mounted
-            # volume (docker-compose mounts a named volume at /data).
-            "NAME": Path(os.getenv("SQLITE_PATH", BASE_DIR / "db.sqlite3")),
+            "NAME": Path(
+                os.getenv(
+                    "SQLITE_PATH",
+                    BASE_DIR / "db.sqlite3",
+                )
+            ),
         }
     }
 
+
 # ------------------------------------------------------------------
-# DRF
+# Django REST Framework
 # ------------------------------------------------------------------
 
 REST_FRAMEWORK = {
@@ -117,6 +145,7 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "trips.exceptions.api_exception_handler",
 }
 
+
 # ------------------------------------------------------------------
 # CORS / CSRF
 # ------------------------------------------------------------------
@@ -129,46 +158,102 @@ CORS_ALLOWED_ORIGINS = [
     ).split(",")
     if o.strip()
 ]
-CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "0") == "1"
+
+CORS_ALLOW_ALL_ORIGINS = (
+    os.getenv("CORS_ALLOW_ALL_ORIGINS", "0") == "1"
+)
+
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
+
 # ------------------------------------------------------------------
-# External free map services (OpenStreetMap stack)
+# External free map services
+# OpenStreetMap / Nominatim / OSRM
 # ------------------------------------------------------------------
 
 GEOCODING_API_URL = os.getenv(
-    "GEOCODING_API_URL", "https://nominatim.openstreetmap.org"
+    "GEOCODING_API_URL",
+    "https://nominatim.openstreetmap.org",
 )
-ROUTING_API_URL = os.getenv("ROUTING_API_URL", "https://router.project-osrm.org")
-# Public Nominatim policy: max 1 request/second, identify yourself.
+
+ROUTING_API_URL = os.getenv(
+    "ROUTING_API_URL",
+    "https://router.project-osrm.org",
+)
+
+
+# Public Nominatim policy:
+# max approximately 1 request/second and identify yourself.
+
 GEOCODING_USER_AGENT = os.getenv(
-    "GEOCODING_USER_AGENT", "TruckHOSPlanner/1.0 (full-stack assessment project)"
+    "GEOCODING_USER_AGENT",
+    "TruckHOSPlanner/1.0 (full-stack assessment project)",
 )
-GEOCODING_MIN_INTERVAL_SECONDS = float(os.getenv("GEOCODING_MIN_INTERVAL_SECONDS", "1.1"))
-GEOCODING_TIMEOUT_SECONDS = float(os.getenv("GEOCODING_TIMEOUT_SECONDS", "10"))
-ROUTING_TIMEOUT_SECONDS = float(os.getenv("ROUTING_TIMEOUT_SECONDS", "20"))
+
+GEOCODING_MIN_INTERVAL_SECONDS = float(
+    os.getenv(
+        "GEOCODING_MIN_INTERVAL_SECONDS",
+        "1.1",
+    )
+)
+
+GEOCODING_TIMEOUT_SECONDS = float(
+    os.getenv(
+        "GEOCODING_TIMEOUT_SECONDS",
+        "10",
+    )
+)
+
+ROUTING_TIMEOUT_SECONDS = float(
+    os.getenv(
+        "ROUTING_TIMEOUT_SECONDS",
+        "20",
+    )
+)
+
 
 # ------------------------------------------------------------------
-# Static / media (rendered ELD log images + PDFs)
+# Static / media
+#
+# Static files:
+#   CSS / JS / Django static assets
+#
+# Media files:
+#   Generated ELD log images
+#   Generated PDFs
 # ------------------------------------------------------------------
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
-        if not DEBUG
-        else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if not DEBUG
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
     },
 }
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+
+
+# ------------------------------------------------------------------
+# General Django settings
+# ------------------------------------------------------------------
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 TIME_ZONE = "America/Chicago"
+
 USE_TZ = True
 
 LANGUAGE_CODE = "en-us"
+
 USE_I18N = True
