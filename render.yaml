@@ -17,7 +17,7 @@ services:
       ./venv/bin/pip install -r requirements.txt &&
       ./venv/bin/python manage.py collectstatic --noinput &&
       ./venv/bin/python manage.py migrate --no-input
-    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    startCommand: ./venv/bin/gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     healthCheckPath: /api/health/
     envVars:
       - key: DJANGO_SECRET_KEY
