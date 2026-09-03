@@ -206,6 +206,11 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
   const activatedRef = useRef(false);
   const [showHint, setShowHint] = useState(false);
   const [routeInView, setRouteInView] = useState(true);
+  // react-leaflet v4 mounts children in a SECOND commit (after the Leaflet
+  // map is created), so this component's own effects may run while mapRef is
+  // still null. Any effect that needs the instance must re-run once the
+  // ref callback below flips mapReady — otherwise it silently never binds.
+  const [mapReady, setMapReady] = useState(false);
 
   const coreBounds = useMemo(() => routeBounds(route.geometry), [route.geometry]);
   const maxBounds = useMemo(() => roamingBounds(coreBounds), [coreBounds]);
@@ -230,6 +235,8 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
       }
       setZoomLevel(map.getZoom());
       map.on("zoomend", () => setZoomLevel(map.getZoom()));
+      // Unlocks the effects below that bind to the instance.
+      setMapReady(true);
     },
     []
   );
@@ -239,7 +246,7 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
   // handlers directly — the reliable path.)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
     activatedRef.current = activated;
     const toggle = (handler: { enable(): void; disable(): void }, on: boolean) =>
       on ? handler.enable() : handler.disable();
@@ -247,13 +254,13 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
     toggle(map.doubleClickZoom, activated);
     toggle(map.keyboard, activated);
     // touchZoom (pinch) stays enabled at all times — a deliberate gesture.
-  }, [activated]);
+  }, [activated, mapReady]);
 
   // Recenter affordance: show a chip whenever the route is not fully in
   // view so the context is always one tap away.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
     const check = () => {
       if (!coreBounds) return;
       try {
@@ -269,7 +276,7 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
       map.off("moveend", check);
       map.off("zoomend", check);
     };
-  }, [coreBounds]);
+  }, [coreBounds, mapReady]);
 
   // Wheel zoom — non-passive listener on the wrapper. Before activation the
   // handler is a no-op: the page scrolls naturally and the map never
@@ -424,14 +431,16 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
         </div>
       )}
 
-      {/* Recenter chip — appears when the route is not fully in view */}
+      {/* Recenter chip — appears when the route is not fully in view.
+          Sits top-center on mobile (above the tall open legend) and
+          bottom-center on desktop; z-580 keeps it above the legend. */}
       {activated && !routeInView && (
         <button
           type="button"
           onClick={() => {
             if (mapRef.current) fitToRoute(mapRef.current, route.geometry);
           }}
-          className="absolute bottom-16 left-1/2 z-[560] flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-2 text-[11px] font-semibold text-night-800 shadow-pop transition hover:border-ink hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+          className="absolute left-1/2 top-14 z-[580] flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-2 text-[11px] font-semibold text-night-800 shadow-pop transition hover:border-ink hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 sm:bottom-16 sm:top-auto"
         >
           <CrosshairIcon size={13} className="text-brand-600" />
           Recenter on route

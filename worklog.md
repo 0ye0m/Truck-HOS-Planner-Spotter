@@ -156,3 +156,23 @@ Work Log:
 Stage Summary:
 - Turn-by-turn now reads like a commercial truck navigation unit (icons from real maneuver semantics, driver-style distances, emphasized roads) and the map gives full control after one explicit click while never losing the route (recenter chip + roaming bounds + gated wheel).
 - Backend 80/80, frontend 37/37, build clean, live E2E verified desktop + mobile.
+
+---
+Task ID: 8 (Final delivery verification + recenter-chip race fix)
+Agent: Super Z (main agent)
+Task: User asked "so we have completed the whole task?" — ran the final delivery verification sweep against the original assessment requirements; found and fixed one real bug.
+
+Work Log:
+- Requirements re-read from upload/ (assessment docx + 2 prompt files): Django+React ✓, 4 inputs ✓, route map w/ stops ✓, drawn daily ELD sheets (multi-day) ✓, route instructions ✓, 70/8 property-carrier assumptions + 1,000-mi fuel + 1-h pickup/dropoff ✓.
+- Full regression: backend 80/80, frontend 37/37, tsc -b clean, vite build clean (419.4 kB js / 45.3 kB css).
+- Live API E2E: POST /api/trips/plan/ LA→Denver→Chicago cycle=24 → 201, trip 21, 2022.3 mi, 53 steps each carrying maneuver+modifier (turn-by-turn data contract), 4 daily logs; /logs/1/image/ 200 (174 KB); /logs/pdf/ 200 (1.05 MB).
+- Browser E2E (desktop 1440 + mobile 390): home + results render; ELD modal full sheet with nav/zoom/download + body scroll-lock; instructions leg accordions expand/collapse; LIVE suggestion layer returns real OSM results; mobile has zero horizontal overflow (390=390).
+- BUG FOUND + FIXED (recenter chip dead on fresh load): react-leaflet v4 mounts children in a SECOND commit (after the Leaflet map exists), so RouteMap's own effects run once while mapRef is still null. The chip-check effect deps were [coreBounds] (never changes) → silently early-returned → "Recenter on route" chip NEVER bound. Verified live before fix: panned to [45,-70] z6, contains=false, chip absent from DOM. FIX: new mapReady state flipped in handleMap ref callback; both map-instance effects (interaction toggle + chip check) now depend on [.., mapReady] so they re-bind deterministically (also closes the rare inert-map race if the overlay is clicked before map creation).
+- VERIFIED LIVE after fix (fresh reload → plan → activate → pan [44,-72] z6): chip appears (contains=false) → click chip → route refit, inView=true, chip gone. Full loop green.
+- POLISH: chip was occluded by the open legend on mobile (z-560 < z-570, overlapping bottom area). Chip now top-center on mobile / bottom-center on desktop (sm:bottom-16 sm:top-auto) at z-[580] above the legend.
+- Fresh-load console: ZERO errors (buffered [error] line was mid-HMR-edit churn, cleared + reloaded to confirm).
+- LIVE badge note: the "LIVE" text badge from Task 5 evolved into per-row blue pin styling for live OSM results — deliberate design, live layer verified working (real Springfield/Spring Township OSM hits + exact-address row).
+
+Stage Summary:
+- One real cross-commit race bug fixed (chip + potential inert map); one mobile occlusion polished.
+- Final state: backend 80/80, frontend 37/37, builds clean, live E2E green desktop+mobile, requirements checklist 100% covered. Task complete.
