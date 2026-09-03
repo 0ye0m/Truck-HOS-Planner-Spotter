@@ -138,6 +138,31 @@ const FLAT: FlatCity[] = Object.entries(CITIES_BY_STATE).flatMap(
 
 export const ALL_CITY_COUNT = FLAT.length;
 
+/** Ordered list of the biggest freight hubs, used for the empty-focus panel. */
+const HUB_PRIORITY = [
+  "Chicago|IL", "Los Angeles|CA", "Dallas|TX", "Atlanta|GA",
+  "New York|NY", "Houston|TX", "Phoenix|AZ", "Denver|CO",
+  "Seattle|WA", "Miami|FL", "Memphis|TN", "Columbus|OH",
+];
+
+/** Popular freight hubs for the "start typing" state of the picker. */
+export function topHubs(limit = 6): CityOption[] {
+  const byKey = new Map(FLAT.filter((c) => c.major).map((c) => [`${c.city}|${c.state}`, c]));
+  const ordered: FlatCity[] = [];
+  for (const key of HUB_PRIORITY) {
+    const c = byKey.get(key);
+    if (c) ordered.push(c);
+  }
+  for (const c of FLAT) {
+    if (ordered.length >= limit) break;
+    if (c.major && !ordered.includes(c)) ordered.push(c);
+  }
+  return ordered.slice(0, limit).map((c) => ({
+    city: c.city, state: c.state, label: c.label,
+    stateName: c.stateName, major: c.major,
+  }));
+}
+
 /** A candidate matches a state code, state name, or "City, ST" label. */
 function scoreCandidate(c: FlatCity, q: string): number {
   // Exact / prefix match on the "city, st" label — strongest signal.

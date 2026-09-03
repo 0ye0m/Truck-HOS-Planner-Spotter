@@ -12,7 +12,7 @@ html,
 body,
 #root {
   min-height: 100%;
-  background-color: #f4f6f8;
+  background-color: #f6f6f6;
 }
 
 body {
@@ -26,8 +26,11 @@ body {
   height: 8px;
 }
 .thin-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5d1;
+  background: #d6d6d6;
   border-radius: 8px;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: #bdbdbd;
 }
 .thin-scroll::-webkit-scrollbar-track {
   background: transparent;
@@ -36,20 +39,24 @@ body {
 .leaflet-container {
   font-family: inherit;
   z-index: 0;
+  background: #ededed;
 }
 
-/* Popups inherit the app typography */
+/* Popups inherit the app typography — crisp marketplace look */
 .leaflet-popup-content-wrapper {
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(16, 24, 40, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
 }
 .leaflet-popup-content {
   margin: 12px 14px;
 }
+.leaflet-popup-tip {
+  box-shadow: none;
+}
 
-/* Range slider (cycle control) */
+/* Range slider (cycle control) — ink track thumb like the marketplace UI */
 input[type="range"] {
-  accent-color: #1d7a4f;
+  accent-color: #000000;
   cursor: pointer;
 }
 
@@ -62,4 +69,19 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+/* Autocomplete dropdown entrance — quick and functional, no fuss */
+@keyframes suggestion-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.suggestion-panel {
+  animation: suggestion-in 120ms ease-out;
 }

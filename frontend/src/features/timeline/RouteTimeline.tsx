@@ -15,7 +15,7 @@ const STATUS_STYLES: Record<
     dot: "bg-slate-300",
     text: "text-slate-600",
     label: "Off Duty",
-    badge: "bg-slate-100 text-slate-600",
+    badge: "bg-canvas text-night-700",
   },
   SLEEPER_BERTH: {
     dot: "bg-indigo-400",
@@ -84,10 +84,10 @@ function DaySummary({ items }: { items: Activity[] }) {
     .reduce((sum, a) => sum + a.duration_minutes, 0);
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-slate-600">
+      <span className="rounded-md bg-canvas px-2 py-0.5 text-[11px] font-semibold tabular-nums text-night-700">
         {miles.toFixed(0)} mi
       </span>
-      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-slate-600">
+      <span className="rounded-md bg-canvas px-2 py-0.5 text-[11px] font-semibold tabular-nums text-night-700">
         {(drivingMin / 60).toFixed(1)} h driving
       </span>
     </div>
@@ -109,8 +109,8 @@ export default function RouteTimeline({ payload }: { payload: PlanPayload }) {
     <div className="thin-scroll max-h-[560px] overflow-y-auto px-5 py-4">
       {[...days.entries()].map(([day, items], dayIndex) => (
         <div key={day} className={dayIndex > 0 ? "mt-6" : ""}>
-          <div className="sticky top-0 z-10 -mx-5 mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-white/95 px-5 py-2 backdrop-blur">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <div className="sticky top-0 z-10 -mx-5 mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-line bg-white/95 px-5 py-2 backdrop-blur">
+            <p className="text-xs font-bold uppercase tracking-wider text-night-500">
               Day {dayIndex + 1} ·{" "}
               {new Date(day + "T12:00:00").toLocaleDateString(undefined, {
                 weekday: "short",
@@ -120,7 +120,7 @@ export default function RouteTimeline({ payload }: { payload: PlanPayload }) {
             </p>
             <DaySummary items={items} />
           </div>
-          <ol className="relative ml-2 border-l-2 border-slate-100">
+          <ol className="relative ml-2 border-l-2 border-line">
             {items.map((a) => {
               const style =
                 STATUS_STYLES[a.duty_status] ?? STATUS_STYLES.OFF_DUTY;
@@ -144,14 +144,14 @@ export default function RouteTimeline({ payload }: { payload: PlanPayload }) {
                         {activityTitle(a)}
                       </span>
                     </p>
-                    <span className="text-xs tabular-nums text-slate-400">
+                    <span className="text-xs tabular-nums text-night-500">
                       {fmtDuration(a.duration_minutes)}
                       {a.distance_miles > 0 &&
                         ` · ${a.distance_miles.toFixed(0)} mi`}
                     </span>
                   </div>
                   {a.location && a.location !== "En route" && (
-                    <p className="mt-0.5 text-xs text-slate-500">{a.location}</p>
+                    <p className="mt-0.5 text-xs text-night-500">{a.location}</p>
                   )}
                 </li>
               );

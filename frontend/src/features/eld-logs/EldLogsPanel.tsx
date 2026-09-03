@@ -21,20 +21,20 @@ export default function EldLogsPanel({ payload }: { payload: PlanPayload }) {
   const { logs, trip } = payload;
 
   return (
-    <section className="mt-8 rounded-xl border border-slate-200 bg-white shadow-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+    <section className="mt-8 rounded-2xl border border-line bg-white shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div>
-          <h2 className="text-base font-semibold text-night-900">
-            Daily ELD Logs
+          <h2 className="text-[15px] font-bold tracking-tightest text-night-900">
+            Daily ELD logs
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-night-500">
             {logs.length} daily log sheet{logs.length === 1 ? "" : "s"} ·
             24-hour graph grid · FMCSA record of duty status
           </p>
         </div>
         <a
           href={allLogsPdfUrl(trip.id)}
-          className="inline-flex items-center gap-2 rounded-lg border border-brand-600 px-4 py-2 text-xs font-semibold text-brand-700 transition hover:bg-brand-50"
+          className="inline-flex items-center gap-2 rounded-lg border border-ink px-4 py-2 text-xs font-semibold text-ink transition hover:bg-ink hover:text-white"
           download
         >
           <DownloadIcon size={13} />
@@ -46,7 +46,7 @@ export default function EldLogsPanel({ payload }: { payload: PlanPayload }) {
         {logs.map((log) => (
           <div
             key={log.day_number}
-            className="group overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:border-brand-300 hover:shadow"
+            className="group overflow-hidden rounded-xl border border-line bg-white transition hover:border-brand-300 hover:shadow"
           >
             <button
               type="button"
@@ -68,18 +68,18 @@ export default function EldLogsPanel({ payload }: { payload: PlanPayload }) {
               type="button"
               onClick={() => setViewingDay(log.day_number)}
               aria-label={`Preview log sheet for day ${log.day_number}`}
-              className="block w-full border-b border-slate-100 bg-slate-50 p-2"
+              className="block w-full border-b border-line bg-canvas p-2"
             >
               <img
                 src={logImageUrl(payload, log.day_number)}
                 alt={`Daily ELD log sheet preview for day ${log.day_number}, ${log.date}`}
                 loading="lazy"
                 decoding="async"
-                className="mx-auto block h-36 w-auto rounded border border-slate-200 bg-white object-contain shadow-sm transition group-hover:border-brand-300"
+                className="mx-auto block h-36 w-auto rounded border border-line bg-white object-contain shadow-sm transition group-hover:border-brand-300"
               />
             </button>
 
-            <div className="space-y-1.5 px-4 py-3 text-xs text-slate-600">
+            <div className="space-y-1.5 px-4 py-3 text-xs text-night-700">
               <div className="flex justify-between">
                 <span>Miles driven</span>
                 <span className="font-semibold tabular-nums text-night-900">
@@ -103,10 +103,10 @@ export default function EldLogsPanel({ payload }: { payload: PlanPayload }) {
                 <span className="font-medium tabular-nums">{log.off_duty_hours.toFixed(2)} h</span>
               </div>
             </div>
-            <div className="flex gap-2 border-t border-slate-100 px-4 py-3">
+            <div className="flex gap-2 border-t border-line px-4 py-3">
               <button
                 onClick={() => setViewingDay(log.day_number)}
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-700"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-600"
               >
                 <FileTextIcon size={13} />
                 View Log
@@ -114,7 +114,7 @@ export default function EldLogsPanel({ payload }: { payload: PlanPayload }) {
               <a
                 href={logImageUrl(payload, log.day_number)}
                 download={`day${log.day_number}_log.png`}
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-semibold text-slate-600 transition hover:border-brand-500 hover:text-brand-600"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line px-3 py-2 text-center text-xs font-semibold text-night-700 transition hover:border-ink hover:text-ink"
               >
                 <DownloadIcon size={13} />
                 Download

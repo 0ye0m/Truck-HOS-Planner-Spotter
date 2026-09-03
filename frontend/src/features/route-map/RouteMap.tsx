@@ -57,7 +57,7 @@ function buildIcon(type: string, major: boolean): L.DivIcon {
   });
 }
 
-const ROUTE_COLOR = "#1d7a4f";
+const ROUTE_COLOR = "#276EF1";
 
 /**
  * Fix Leaflet stale-size tile issues after mount; auto-fit the route once.
@@ -212,7 +212,7 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
         <button
           type="button"
           onClick={() => mapRef.current && fitToRoute(mapRef.current, route.geometry)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-card transition hover:border-brand-400 hover:text-brand-700"
+          className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-night-700 shadow-card transition hover:border-ink hover:text-ink"
           title="Zoom to fit the full route"
         >
           Fit route
@@ -220,7 +220,7 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-3 left-3 z-[500] rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-[11px] shadow-card backdrop-blur">
+      <div className="absolute bottom-3 left-3 z-[500] rounded-lg border border-line bg-white/95 px-3 py-2 text-[11px] shadow-card backdrop-blur">
         <p className="mb-1 font-semibold text-night-900">Legend</p>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1">
           {[
@@ -242,9 +242,9 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
                   className="inline-block h-3 w-3 flex-none rounded-full border border-white shadow-sm"
                   style={{ backgroundColor: MARKER_STYLES[type]?.bg ?? "#64748b" }}
                 />
-                <span className="text-slate-600">{label}</span>
+                <span className="text-night-700">{label}</span>
                 {count > 0 && (
-                  <span className="rounded bg-slate-100 px-1 font-semibold tabular-nums text-slate-500">
+                  <span className="rounded bg-canvas px-1 font-semibold tabular-nums text-night-700">
                     {count}
                   </span>
                 )}
@@ -271,11 +271,11 @@ function PopupBody({
       <p className="text-[11px] font-bold tracking-wide text-brand-700">{title}</p>
       <p className="mt-0.5 text-sm font-semibold text-night-900">{location}</p>
       {rows.length > 0 && (
-        <dl className="mt-2 space-y-1 border-t border-slate-100 pt-2">
+        <dl className="mt-2 space-y-1 border-t border-line pt-2">
           {rows.map(([key, value]) => (
             <div key={key} className="flex justify-between gap-4">
-              <dt className="text-slate-500">{key}:</dt>
-              <dd className="text-right font-medium tabular-nums text-slate-800">{value}</dd>
+              <dt className="text-night-500">{key}:</dt>
+              <dd className="text-right font-medium tabular-nums text-night-800">{value}</dd>
             </div>
           ))}
         </dl>

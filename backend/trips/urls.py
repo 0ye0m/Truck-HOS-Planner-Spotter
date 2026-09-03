@@ -18,5 +18,6 @@ urlpatterns = [
     ),
     path("trips/<int:trip_id>/route/", views.trip_route, name="trip-route"),
     path("geocode/", views.geocode, name="geocode"),
+    path("geocode/suggest/", views.geocode_suggest, name="geocode-suggest"),
     path("health/", views.health, name="health"),
 ]

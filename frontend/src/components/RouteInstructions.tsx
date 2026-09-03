@@ -16,12 +16,12 @@ export default function RouteInstructions({ payload }: { payload: PlanPayload })
   ];
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white shadow-card lg:col-span-2">
-      <div className="border-b border-slate-100 px-5 py-4">
-        <h2 className="text-base font-semibold text-night-900">
-          Route Instructions
+    <section className="rounded-2xl border border-line bg-white shadow-card lg:col-span-2">
+      <div className="border-b border-line px-5 py-4">
+        <h2 className="text-[15px] font-bold tracking-tightest text-night-900">
+          Route instructions
         </h2>
-        <p className="text-xs text-slate-500">Turn-by-turn via {provider}</p>
+        <p className="text-xs text-night-500">Turn-by-turn via {provider}</p>
       </div>
       <div className="thin-scroll max-h-[560px] overflow-y-auto px-5 py-4">
         {legs.map((leg, index) => {
@@ -31,15 +31,15 @@ export default function RouteInstructions({ payload }: { payload: PlanPayload })
               <button
                 onClick={() => setOpenLeg(open ? null : index)}
                 aria-expanded={open}
-                className="flex w-full items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-left transition hover:bg-slate-100"
+                className="flex w-full items-center justify-between gap-2 rounded-lg bg-canvas px-3 py-2.5 text-left transition hover:bg-line/60"
               >
                 <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-night-900">
-                  <ListIcon size={14} className="flex-none text-slate-400" />
+                  <ListIcon size={14} className="flex-none text-night-500" />
                   <span className="truncate">
                     {legEndpoints[index] ?? `Leg ${index + 1}`}
                   </span>
                 </span>
-                <span className="flex flex-none items-center gap-2 text-xs tabular-nums text-slate-500">
+                <span className="flex flex-none items-center gap-2 text-xs tabular-nums text-night-500">
                   {leg.distance_miles.toFixed(0)} mi
                   <ChevronDownIcon
                     size={14}
@@ -48,17 +48,17 @@ export default function RouteInstructions({ payload }: { payload: PlanPayload })
                 </span>
               </button>
               {open && (
-                <ol className="mt-2 space-y-1.5 border-l-2 border-slate-100 pl-4">
+                <ol className="mt-2 space-y-1.5 border-l-2 border-line pl-4">
                   {leg.steps.length === 0 && (
-                    <li className="text-xs text-slate-400">
+                    <li className="text-xs text-night-500">
                       No step-by-step instructions available for this leg.
                     </li>
                   )}
                   {leg.steps.map((step, i) => (
-                    <li key={i} className="text-xs leading-relaxed text-slate-600">
+                    <li key={i} className="text-xs leading-relaxed text-night-700">
                       {step.instruction}
                       {step.distance_miles > 0.1 && (
-                        <span className="ml-1 tabular-nums text-slate-400">
+                        <span className="ml-1 tabular-nums text-night-500">
                           ({step.distance_miles.toFixed(1)} mi)
                         </span>
                       )}

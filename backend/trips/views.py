@@ -10,6 +10,7 @@ REST API endpoints.
     GET  /api/trips/{id}/logs/pdf/      all logs as one PDF
     GET  /api/trips/{id}/route/         route detail
     GET  /api/geocode/?q=...            geocoding helper
+    GET  /api/geocode/suggest/?q=...    live US place suggestions
     GET  /api/health/                   health check
 """
 
@@ -30,8 +31,13 @@ from config.settings import GEOCODING_API_URL, ROUTING_API_URL
 from eldlogs.pdf import images_to_pdf
 from hos import validate_schedule
 from routing.geocoder import Geocoder, GeocodingError
+from routing.suggest import suggest_places
 from trips.models import DailyLog, Route, ScheduledActivity, Trip
-from trips.serializers import GeocodeQuerySerializer, TripPlanInputSerializer
+from trips.serializers import (
+    GeocodeQuerySerializer,
+    SuggestQuerySerializer,
+    TripPlanInputSerializer,
+)
 from trips.services import TripInput, TripPlanningError, TripPlanner
 
 logger = logging.getLogger(__name__)
@@ -430,6 +436,27 @@ def geocode(request):
             "display_name": result.display_name,
         }
     )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def geocode_suggest(request):
+    """GET /api/geocode/suggest/?q=... — live US place suggestions.
+
+    Powers the frontend's real-time location picker. Autocomplete must
+    never show an error banner, so every upstream failure degrades to an
+    empty result list (the UI falls back to local matches + free text);
+    only a malformed request itself returns 400.
+    """
+    serializer = SuggestQuerySerializer(data=request.query_params)
+    serializer.is_valid(raise_exception=True)
+    query = serializer.validated_data["q"]
+    try:
+        results = suggest_places(query)
+    except Exception:  # pragma: no cover — suggest_places already guards
+        logger.exception("Suggestion endpoint unexpectedly failed for %r", query)
+        results = []
+    return Response({"query": query, "results": results})
 
 
 @api_view(["GET"])

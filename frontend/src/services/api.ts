@@ -54,6 +54,37 @@ export async function planTrip(request: PlanRequest): Promise<PlanPayload> {
   return handle<PlanPayload>(response);
 }
 
+/** One live place suggestion from the backend geocoder (US-biased). */
+export interface PlaceSuggestion {
+  /** Canonical "City, ST" string the backend geocodes reliably. */
+  label: string;
+  /** Human-readable context, e.g. "Columbus, Franklin County, Ohio". */
+  display_name: string;
+  lat: number;
+  lon: number;
+  kind: string;
+}
+
+/**
+ * Live place suggestions for the location picker (debounced + aborted by
+ * the caller). Resolves to [] on any failure — autocomplete degrades to
+ * the instant local dataset instead of surfacing an error.
+ */
+export async function suggestPlaces(
+  query: string,
+  signal?: AbortSignal
+): Promise<PlaceSuggestion[]> {
+  try {
+    const url = `${BASE}/api/geocode/suggest/?q=${encodeURIComponent(query)}`;
+    const response = await fetch(url, { signal });
+    if (!response.ok) return [];
+    const data = (await response.json()) as { results?: PlaceSuggestion[] };
+    return Array.isArray(data.results) ? data.results : [];
+  } catch {
+    return []; // aborted or offline — never break the typing flow
+  }
+}
+
 export function logImageUrl(payload: PlanPayload, day: number): string {
   const log = payload.logs.find((l) => l.day_number === day);
   return log ? `${BASE}${log.image_url}` : "";

@@ -27,12 +27,12 @@ export default function HosSummaryCard({
   const windowPct = Math.min(100, (summary.window_used_hours / 14) * 100);
 
   return (
-    <div className="h-full rounded-xl border border-slate-200 bg-white shadow-card">
-      <div className="border-b border-slate-100 px-5 py-4">
+    <div className="h-full rounded-2xl border border-line bg-white shadow-card">
+      <div className="border-b border-line px-5 py-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-night-900">HOS Availability</h2>
+          <h2 className="text-[15px] font-bold tracking-tightest text-night-900">HOS availability</h2>
           {summary.schedulable ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-50 px-2.5 py-1 text-xs font-semibold text-ok-700">
               <CheckCircleIcon size={13} />
               Legally schedulable
             </span>
@@ -43,9 +43,9 @@ export default function HosSummaryCard({
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-xs text-slate-500">
+        <p className="mt-0.5 text-xs text-night-500">
           All times in home-terminal time zone:{" "}
-          <span className="font-medium text-slate-600">
+          <span className="font-medium text-night-700">
             {trip.home_terminal_timezone.replace(/_/g, " ")}
           </span>
         </p>
@@ -176,16 +176,16 @@ function Metric({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-night-800">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-night-900">
           {title}
           <InfoHint text={hint} label={`${title}: ${hint}`} />
         </h3>
-        <span className="text-xs font-medium tabular-nums text-slate-500">
+        <span className="text-xs font-medium tabular-nums text-night-500">
           {progress.label}
         </span>
       </div>
       <div
-        className="h-2 w-full overflow-hidden rounded-full bg-slate-100"
+        className="h-2 w-full overflow-hidden rounded-full bg-canvas"
         role="progressbar"
         aria-label={`${title} usage`}
         aria-valuemin={0}
@@ -198,7 +198,7 @@ function Metric({
               ? "bg-red-500"
               : progress.pct > 80
                 ? "bg-amber-500"
-                : "bg-brand-500"
+                : "bg-ok-500"
           }`}
           style={{ width: `${progress.pct}%` }}
         />
@@ -206,8 +206,8 @@ function Metric({
       <dl className="mt-2 space-y-1">
         {rows.map(([key, value]) => (
           <div key={key} className="flex justify-between text-xs">
-            <dt className="text-slate-500">{key}</dt>
-            <dd className="font-medium tabular-nums text-night-800">{value}</dd>
+            <dt className="text-night-500">{key}</dt>
+            <dd className="font-medium tabular-nums text-night-900">{value}</dd>
           </div>
         ))}
       </dl>
@@ -225,8 +225,8 @@ function MiniStat({
   icon?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg bg-slate-50 px-3 py-2.5">
-      <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+    <div className="rounded-xl bg-canvas px-3 py-2.5">
+      <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-night-500">
         {icon}
         {label}
       </p>

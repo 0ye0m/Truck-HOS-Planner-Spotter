@@ -37,18 +37,18 @@ export default function AssumptionsPanel() {
   ];
 
   return (
-    <details className="mt-8 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-card">
+    <details className="mt-8 rounded-2xl border border-line bg-white px-5 py-4 shadow-card">
       <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-sm font-semibold text-night-900">
-        <InfoIcon size={15} className="text-slate-400" />
+        <InfoIcon size={15} className="text-night-500" />
         Calculation assumptions
-        <span className="text-xs font-normal text-slate-400">
+        <span className="text-xs font-normal text-night-500">
           modeled rules — expand to review
         </span>
       </summary>
-      <div className="mt-3 grid gap-x-8 gap-y-2.5 text-xs leading-relaxed text-slate-600 sm:grid-cols-2">
+      <div className="mt-3 grid gap-x-8 gap-y-2.5 text-xs leading-relaxed text-night-700 sm:grid-cols-2">
         {items.map(([key, value]) => (
           <p key={key}>
-            <strong className="font-semibold text-night-800">{key}:</strong> {value}
+            <strong className="font-semibold text-night-900">{key}:</strong> {value}
           </p>
         ))}
       </div>

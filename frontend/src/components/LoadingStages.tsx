@@ -31,7 +31,7 @@ export default function LoadingStages() {
 
   return (
     <div
-      className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-card"
+      className="mt-8 rounded-2xl border border-line bg-white p-6 shadow-card"
       role="status"
       aria-live="polite"
     >
@@ -45,7 +45,7 @@ export default function LoadingStages() {
         {[420, 380, 340].map((width, i) => (
           <div
             key={i}
-            className="h-3 animate-pulse rounded bg-slate-100"
+            className="h-3 animate-pulse rounded bg-canvas"
             style={{ width: `${(width / 500) * 100}%`, animationDelay: `${i * 150}ms` }}
           />
         ))}
@@ -57,7 +57,7 @@ export default function LoadingStages() {
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
               i <= stage
                 ? "bg-brand-50 font-medium text-brand-700"
-                : "bg-slate-100 text-slate-400"
+                : "bg-canvas text-night-500"
             }`}
           >
             {STAGE_ICONS[i]}

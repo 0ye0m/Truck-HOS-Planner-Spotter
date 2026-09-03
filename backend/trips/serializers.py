@@ -66,3 +66,10 @@ class TripPlanInputSerializer(serializers.Serializer):
 
 class GeocodeQuerySerializer(serializers.Serializer):
     q = serializers.CharField(max_length=512, trim_whitespace=True)
+
+
+class SuggestQuerySerializer(serializers.Serializer):
+    """Live-autocomplete query: at least 2 chars so single keystrokes never
+    hit the network, capped to keep URLs sane."""
+
+    q = serializers.CharField(min_length=2, max_length=200, trim_whitespace=True)

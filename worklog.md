@@ -98,3 +98,20 @@ Stage Summary:
 - Outage cause: sandbox reset wiped venv/node_modules AND no boot script existed → preview dead. 
 - Permanent fix: .zscripts/dev.sh (self-healing, idempotent, container-boot integrated) + double-fork launch technique for the live session. 
 - Stack verified end-to-end healthy; all tests green; preview restored.
+
+---
+Task ID: 5 (Uber-style UI overhaul + real-time US location selectors)
+Agent: Super Z (main agent)
+Task: Redesign the frontend to a clean, production-grade marketplace (Uber-style) design system and replace the static city list with real-time server-backed location suggestions.
+
+Work Log:
+- Backend: NEW routing/suggest.py — Nominatim /search (jsonv2, addressdetails, countrycodes=us, accept-language=en) through the shared throttle + User-Agent; in-memory cache (bounded 2048); formats to {label "City, ST", display_name, lat, lon, kind}; state codes from ISO3166-2-lvl4 or US_STATE_ABBREVIATIONS; road/county hits fall back to trimmed display labels; ANY upstream failure degrades to [] (autocomplete must never show an error banner). NEW trips/views.geocode_suggest (SuggestQuerySerializer: q min_length 2, max_length 200 → 400 on short) + route /api/geocode/suggest/. NEW tests/test_suggest.py: 9 tests (shaping, dedup, short-query 400, empty set, upstream failure → 200 [], caching = single network call). Backend suite now 61/61.
+- Design system (frontend): tailwind.config.js re-tuned to marketplace palette — brand = Uber blue scale (#276EF1), NEW ok = success green (#05A357), night.900 = #000 ink, canvas #F6F6F6, line #E2E2E2, muted; shadow-card/pop; radius 2xl=1rem; tracking-tightest. index.css: canvas bg, slider accent ink, lighter leaflet canvas + 12px popups, suggestion panel entrance animation.
+- Real-time LocationInput (rewritten): TWO layers — instant local dataset (searchCities) for zero-latency matches + LIVE server results 300 ms after typing stops (suggestPlaces via /api/geocode/suggest/ with AbortController; stale requests aborted; live list replaces local when non-empty). Popular-freight-hubs panel on empty focus (new topHubs() in usCities.ts). Accessible combobox kept (aria-activedescendant etc.), spinner-in-input while searching, "LIVE" badge, per-row pin icons + display_name subtitles, always-available "Use exact address" footer row (Enter submits free text). Live failures degrade silently to local layer.
+- TripPlannerForm: "Plan your trip" header with try-it pill buttons (hover→black), Uber inputs (h-12, rounded-lg, border-line, hover border, blue focus ring), black step chips, red error accents (#E11900), advanced section on canvas with rotating chevron, signature BLACK CTA "Plan trip" → hover blue (bg-ink hover:bg-brand-600) with in-button spinner.
+- Header: white/blur sticky bar, black logo tile, rule-set chips outlined. App shell: canvas bg, rounded-2xl SectionCards with black icon tiles, light footer. TripSummary/HosSummaryCard/Timeline/Instructions/EldLogsPanel/Empty/Error/Loading/Assumptions/RouteMap: token alignment (border-line, text-night-500/700, bg-canvas chips, ok-green success badge, blue route polyline #276EF1, black View Log buttons + outlined Download, red error state recolor).
+- Tests: frontend 20/20 (LocationInput rewritten suite: dataset ranking, combobox select, free-text + exact-address row, hubs-on-focus, live-replaces-local via stubbed fetch, offline fallback); caught & fixed nbsp textContent issue by rendering ", ST" with \u00A0 and normalizing in assertions. tsc -b clean; vite build OK (402 kB js / 42.7 kB css).
+- Live E2E via proxy: suggest?q=springfield → real Nominatim results (Springfield IL/MA/MO... with coords); short q → 400; Django restarted (--noreload needed restart to pick up new code; watchdog handles); Denver→KC→Chicago cycle=20 → 201, 1113.8 mi, 2 logs, 5 markers; page title OK.
+
+Stage Summary:
+- Frontend now carries a coherent, production-grade marketplace design system (ink/blue/canvas) across every screen, with real-time US place suggestions powering all three location fields (instant local + live OpenStreetMap layer, graceful degradation). Backend 61/61, frontend 20/20, build clean, live E2E verified.

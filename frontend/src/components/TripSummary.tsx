@@ -28,21 +28,21 @@ function Stat({
 }) {
   return (
     <div
-      className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
+      className={`flex items-start gap-3 rounded-2xl border px-4 py-3 ${
         accent
           ? "border-brand-200 bg-brand-50"
-          : "border-slate-200 bg-white shadow-card"
+          : "border-line bg-white shadow-card"
       }`}
     >
       <span
         className={`mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-lg ${
-          accent ? "bg-brand-100 text-brand-700" : "bg-slate-100 text-slate-500"
+          accent ? "bg-brand-100 text-brand-700" : "bg-canvas text-night-700"
         }`}
       >
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-night-500">
           {label}
         </p>
         <p
@@ -52,7 +52,7 @@ function Stat({
         >
           {value}
         </p>
-        {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
+        {sub && <p className="text-[11px] text-night-500">{sub}</p>}
       </div>
     </div>
   );
@@ -68,8 +68,8 @@ function Chip({
   value: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 shadow-card">
-      <span className="text-slate-400">{icon}</span>
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs text-night-700 shadow-card">
+      <span className="text-night-500">{icon}</span>
       <span className="font-semibold tabular-nums text-night-900">{value}</span>
       {label}
     </span>
@@ -139,7 +139,7 @@ export default function TripSummary({ payload }: { payload: PlanPayload }) {
           {trip.dropoff_location}
         </span>
         {trip.assumed_start_time && (
-          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-slate-200/70 px-3 py-1 text-[11px] font-medium text-slate-600">
+          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-canvas px-3 py-1 text-[11px] font-medium text-night-700">
             <ClockIcon size={11} />
             Assumed start 06:00 (home terminal) — adjust in advanced options
           </span>
@@ -218,7 +218,7 @@ function Arrow() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      className="text-slate-300"
+      className="text-line"
     >
       <path d="M5 12h14" />
       <path d="m12 5 7 7-7 7" />
