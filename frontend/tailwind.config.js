@@ -55,6 +55,8 @@ export default {
           900: "#000000", // ink
           950: "#000000",
         },
+        /** Signature near-black used for primary surfaces (buttons, chips, tiles). */
+        ink: "#000000",
         canvas: "#F6F6F6",
         line: "#E2E2E2",
         muted: "#757575",

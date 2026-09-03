@@ -2,7 +2,13 @@
  * API client — relative /api paths only (Vite proxies to Django :8000 in
  * the sandbox; in production VITE_API_BASE_URL points at the backend).
  */
-import type { PlanPayload, PlanRequest } from "@/types";
+import type {
+  HosSummary,
+  PlanPayload,
+  PlanRequest,
+  RouteInfo,
+  Violation,
+} from "@/types";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -52,6 +58,44 @@ export async function planTrip(request: PlanRequest): Promise<PlanPayload> {
     body: JSON.stringify(request),
   });
   return handle<PlanPayload>(response);
+}
+
+/** Dry-run estimate from POST /api/trips/validate/ (no persistence, no logs). */
+export interface ValidateResponse {
+  schedulable: boolean;
+  violations: Violation[];
+  message?: string;
+  hos_summary: HosSummary;
+  route: RouteInfo;
+}
+
+/**
+ * Live route estimate for the preview strip. Aborts cleanly when the caller
+ * cancels (query changed) — surfacing no error in that case.
+ */
+export async function validateTrip(
+  request: PlanRequest,
+  signal?: AbortSignal
+): Promise<ValidateResponse> {
+  const response = await fetch(`${BASE}/api/trips/validate/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+  });
+  if (!response.ok) {
+    // Structured 400s (e.g. unknown address) — surface the message, the
+    // preview renders it as a soft hint instead of an alarming error.
+    let message = "Could not estimate this route yet.";
+    try {
+      const data = await response.json();
+      if (data && typeof data.error === "string") message = data.error;
+    } catch {
+      /* keep default */
+    }
+    throw new ApiRequestError(message, "validate-failed");
+  }
+  return (await response.json()) as ValidateResponse;
 }
 
 /** One live place suggestion from the backend geocoder (US-biased). */

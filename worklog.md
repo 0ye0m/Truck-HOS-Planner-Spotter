@@ -115,3 +115,25 @@ Work Log:
 
 Stage Summary:
 - Frontend now carries a coherent, production-grade marketplace design system (ink/blue/canvas) across every screen, with real-time US place suggestions powering all three location fields (instant local + live OpenStreetMap layer, graceful degradation). Backend 61/61, frontend 20/20, build clean, live E2E verified.
+
+---
+Task ID: 6 (UI bug hunt — root causes, map lockdown, real-time estimates)
+Agent: Super Z (main agent)
+Task: User reported "so many UI bugs... still not proper"; demanded senior-dev/tester quality, map scroll lockdown (wheel must not move map out of route context; zoom only via pinch/buttons), and verification that calculations are correct/real-time.
+
+Work Log:
+- BROWSER AUDIT FIRST (agent-browser, desktop 1440 + mobile 390): screenshotted every state, extracted computed styles, cross-checked API payloads.
+- ROOT CAUSE 1 — dead Tailwind token: `bg-ink`/`text-ink`/`border-ink` used everywhere but `ink` was NEVER defined in tailwind.config.js → getComputedStyle returned rgba(0,0,0,0) → the primary "Plan trip" button, header logo tile, step chips 1-4, "View Log" buttons and HOS placeholder tile were INVISIBLE (white on white). Fixed: `ink: "#000000"` in theme.colors.
+- ROOT CAUSE 2 — stale CSS build: served CSS had brand-600 = GREEN rgb(23,97,64) while config says blue #1F5AD1 → Vite/Tailwind had never recompiled after the Task-5 palette re-tune; the whole Task-5 redesign never reached the browser. Fixed: killed Vite, deleted node_modules/.vite, watchdog restarted → verified live: .bg-ink black, hover:bg-brand-600 = rgb(31 90 209).
+- MAP LOCKDOWN (user requirement): scrollWheelZoom=false, dragging=false, doubleClickZoom/boxZoom/keyboard=false, touchZoom=true (pinch), zoomControl=false; custom Uber-style +/−/Fit column (40px targets, disabled at zoom clamps, zoom tracked via zoomend); hard maxBounds = route bounds padded 35% (min 0.6°) with maxBoundsViscosity=1.0; Popup autoPan=false; ResizeObserver → invalidateSize+refit; polylines non-interactive; collapsible legend (only non-zero rows, collapsed by default on mobile). VERIFIED LIVE: two wheel events over map → zoom stayed 7 while page scrolled 835→1635px; +/−/fit → z 7→8→7→fit.
+- REAL-TIME NUMBERS VERIFIED: API + DOM agree (356=356=356 mi; driving 7.0h; window 9.5/14; cycle 41.5/70; long haul 2022 mi / 35.6 h / 70h8m / ETA Sun Sep 6 04:08; ELD day totals sum to 24.00h and daily miles == route miles). Calculations were already correct server-side; now also surfaced live.
+- NEW RoutePreview component: debounced (700ms) POST /api/trips/validate/ dry-run while typing all three locations → live strip "356 mi · 7.0 h driving · 9.5 h on duty · 28.5 h cycle left · COMPLIANT/HOS review"; AbortController on every change; failures degrade to a soft hint (verified with garbage address); renders nothing until all fields ≥3 chars. api.ts gained validateTrip() + ValidateResponse.
+- ELD modal zoom BUG fixed: width% AND transform scale combined → 4x effective at zoom 2; now width-only (verified linear 1024→1536px at 1.5×, transform none). Preview image now w-full (readable full-width sheet vs tiny h-36 thumbnail). Body scroll-lock while modal open.
+- FLOW: auto smooth-scroll to #trip-results after planning; RouteMap keyed by trip.id (fixes stale viewport on second plan — MapContainer options are init-only); RouteInstructions filters zero-info steps ("Keep left/right" < 0.25 mi with no street name).
+- Tests: +3 RoutePreview tests (idle gate, live estimate via stubbed fetch incl. request body, soft-hint degradation) → frontend 23/23; backend pytest 61/61; tsc -b + vite build clean (409.8 kB js / 43.9 kB css).
+- Full browser regression: short trip (356 mi), long haul second plan (map remounts, z=4 cross-country fit), live suggestions ("spring" → LIVE badge + real OSM results + exact-address row), structured error state with Try again, ELD preview + modal, mobile 390px layout; fresh-load console has ZERO errors (one historical [error] line was mid-edit HMR churn).
+
+Stage Summary:
+- The two root causes (missing ink token + stale compiled CSS) explain the user's "so many bugs / still not proper": the entire Uber-style design system had never actually rendered. Both fixed and verified at the computed-style level.
+- Map is now context-locked: wheel/pinch/drag policies per requirement, route can never leave view (maxBounds + no pan + no popup autopan), zoom only via pinch/buttons.
+- Real-time: live estimate strip streams the exact route/HOS numbers before submit; all displayed numbers cross-verified consistent end-to-end.

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import TripPlannerForm from "@/features/trip-planner/TripPlannerForm";
 import HosSummaryCard from "@/features/hos-summary/HosSummaryCard";
@@ -21,6 +21,17 @@ export default function App() {
   const { mutate, isPending, error, reset } = usePlanTrip((payload) =>
     setResult(payload)
   );
+
+  // Bring the freshly computed results into view (form stays at the top).
+  useEffect(() => {
+    if (!result) return;
+    const frame = requestAnimationFrame(() => {
+      document
+        .getElementById("trip-results")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [result]);
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas text-night-800">
@@ -56,16 +67,19 @@ export default function App() {
         {result && (
           <>
             {/* Trip summary strip */}
-            <TripSummary payload={result} />
+            <div id="trip-results" className="scroll-mt-24">
+              <TripSummary payload={result} />
+            </div>
 
-            {/* Route map */}
+            {/* Route map — keyed by trip so a new plan always gets a fresh,
+                correctly-fitted viewport (MapContainer options are init-only) */}
             <SectionCard
               title="Route map"
               icon={<MapPinIcon size={15} />}
               description="Route, stops and overnight rests — powered by OpenStreetMap & OSRM"
               className="mt-8"
             >
-              <RouteMap payload={result} />
+              <RouteMap key={result.trip.id} payload={result} />
             </SectionCard>
 
             {/* Timeline + instructions */}

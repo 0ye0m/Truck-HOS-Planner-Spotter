@@ -1,12 +1,32 @@
-import { useEffect, useMemo, useRef } from "react";
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  useMap,
+} from "react-leaflet";
 import L from "leaflet";
 import type { Marker as MarkerType, PlanPayload } from "@/types";
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CrosshairIcon,
+  MapPinIcon,
+} from "@/components/icons";
 
 /**
  * Route map: current/pickup/dropoff + fuel/rest/overnight stops derived
  * from the canonical schedule. Markers are circular SVG badges; clicking a
  * stop shows type, location, arrival, departure, duration and reason.
+ *
+ * Interaction policy (route always stays in context):
+ *  - Mouse wheel does NOTHING on the map (page scroll stays native).
+ *  - One-finger drag / map panning is disabled.
+ *  - Zooming is only possible via the +/− buttons or pinch gestures.
+ *  - Hard maxBounds around the route (viscosity 1.0) make it impossible
+ *    to zoom or pan the route out of view, and popups never auto-pan.
  */
 
 const MARKER_STYLES: Record<
@@ -58,15 +78,40 @@ function buildIcon(type: string, major: boolean): L.DivIcon {
 }
 
 const ROUTE_COLOR = "#276EF1";
+const MIN_ZOOM = 4;
+const MAX_ZOOM = 16;
+
+/** Route bounds generously padded — the hard limit the map can never leave. */
+function routeBounds(geometry: [number, number][]): L.LatLngBounds | null {
+  if (geometry.length < 2) return null;
+  const bounds = L.latLngBounds(geometry.map(([lat, lon]) => L.latLng(lat, lon)));
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
+  const padLat = Math.max((ne.lat - sw.lat) * 0.35, 0.6);
+  const padLon = Math.max((ne.lng - sw.lng) * 0.35, 0.6);
+  return L.latLngBounds(
+    [sw.lat - padLat, sw.lng - padLon],
+    [ne.lat + padLat, ne.lng + padLon]
+  );
+}
+
+function fitToRoute(map: L.Map, geometry: [number, number][]) {
+  if (geometry.length < 2) return;
+  const bounds = L.latLngBounds(geometry.map(([lat, lon]) => L.latLng(lat, lon)));
+  map.fitBounds(bounds, { padding: [48, 48], animate: true, duration: 0.4 });
+}
 
 /**
- * Fix Leaflet stale-size tile issues after mount; auto-fit the route once.
+ * Mount-time sizing + fit, and keep the canvas in sync with layout changes
+ * (accordions, window resizes) so tiles never render stale/clipped.
  */
 function MapSetup({
   geometry,
+  wrapperRef,
   onMap,
 }: {
   geometry: [number, number][];
+  wrapperRef: React.RefObject<HTMLDivElement>;
   onMap: (map: L.Map) => void;
 }) {
   const map = useMap();
@@ -86,13 +131,23 @@ function MapSetup({
     return () => timers.forEach(clearTimeout);
   }, [geometry, map, onMap]);
 
-  return null;
-}
+  // Track container size changes (desktop accordions, mobile rotation, etc.)
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let last = `${el.offsetWidth}x${el.offsetHeight}`;
+    const ro = new ResizeObserver(() => {
+      const next = `${el.offsetWidth}x${el.offsetHeight}`;
+      if (next === last) return;
+      last = next;
+      map.invalidateSize();
+      if (geometry.length > 1) fitToRoute(map, geometry);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [map, geometry, wrapperRef]);
 
-function fitToRoute(map: L.Map, geometry: [number, number][]) {
-  if (geometry.length < 2) return;
-  const bounds = L.latLngBounds(geometry.map(([lat, lon]) => L.latLng(lat, lon)));
-  map.fitBounds(bounds, { padding: [44, 44] });
+  return null;
 }
 
 function formatTime(iso: string, timeZone?: string): string {
@@ -115,10 +170,19 @@ const TYPE_LABELS: Record<string, string> = {
   REST_BREAK: "30-MIN BREAK",
 };
 
+/** Shared look for the floating white map controls. */
+const controlBtn =
+  "flex h-10 w-10 flex-none items-center justify-center rounded-lg border border-line bg-white text-night-700 shadow-pop transition hover:border-ink hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-night-700";
+
 export default function RouteMap({ payload }: { payload: PlanPayload }) {
   const { route, markers, trip } = payload;
   const homeTz = trip.home_terminal_timezone;
   const mapRef = useRef<L.Map | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [zoomLevel, setZoomLevel] = useState(6);
+  const [legendOpen, setLegendOpen] = useState(
+    () => typeof window === "undefined" || window.innerWidth >= 640
+  );
 
   // Current-location marker: first coordinate of the route. The dropoff
   // endpoint does NOT get an extra marker here — the canonical schedule
@@ -131,9 +195,13 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
     .filter((m) => m.lat !== null && m.lon !== null)
     .map((m) => ({ marker: m, major: majorTypes.has(m.type) }));
 
+  const maxBounds = useMemo(() => routeBounds(route.geometry), [route.geometry]);
+
   const handleMap = useMemo(
     () => (map: L.Map) => {
       mapRef.current = map;
+      setZoomLevel(map.getZoom());
+      map.on("zoomend", () => setZoomLevel(map.getZoom()));
     },
     []
   );
@@ -145,32 +213,45 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
   }, [markers]);
 
   return (
-    <div className="relative h-[400px] w-full sm:h-[500px]">
+    <div ref={wrapperRef} className="relative h-[400px] w-full sm:h-[520px]">
       <MapContainer
         center={[39.5, -86.0]}
         zoom={6}
-        scrollWheelZoom
+        minZoom={MIN_ZOOM}
+        maxZoom={MAX_ZOOM}
+        scrollWheelZoom={false}
+        dragging={false}
+        doubleClickZoom={false}
+        touchZoom
+        boxZoom={false}
+        keyboard={false}
+        zoomControl={false}
+        maxBounds={maxBounds ?? undefined}
+        maxBoundsViscosity={1.0}
         className="h-full w-full rounded-b-xl"
+        attributionControl
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapSetup geometry={route.geometry} onMap={handleMap} />
+        <MapSetup geometry={route.geometry} wrapperRef={wrapperRef} onMap={handleMap} />
 
         {/* White casing under the colored route for contrast on busy tiles */}
         <Polyline
           positions={route.geometry}
           pathOptions={{ color: "#ffffff", weight: 9, opacity: 0.9 }}
+          interactive={false}
         />
         <Polyline
           positions={route.geometry}
           pathOptions={{ color: ROUTE_COLOR, weight: 5, opacity: 0.9 }}
+          interactive={false}
         />
 
         {startCoord && (
           <Marker position={startCoord} icon={buildIcon("CURRENT", true)}>
-            <Popup>
+            <Popup autoPan={false}>
               <PopupBody
                 title="CURRENT LOCATION"
                 location={trip.current_location}
@@ -186,7 +267,7 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
             position={[marker.lat, marker.lon]}
             icon={buildIcon(marker.type, major)}
           >
-            <Popup>
+            <Popup autoPan={false}>
               <PopupBody
                 title={TYPE_LABELS[marker.type] ?? marker.label.toUpperCase()}
                 location={marker.location}
@@ -207,51 +288,86 @@ export default function RouteMap({ payload }: { payload: PlanPayload }) {
         ))}
       </MapContainer>
 
-      {/* Map controls */}
+      {/* Zoom + fit controls (the ONLY way to move the viewport) */}
       <div className="absolute right-3 top-3 z-[500] flex flex-col gap-1.5">
         <button
           type="button"
-          onClick={() => mapRef.current && fitToRoute(mapRef.current, route.geometry)}
-          className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-night-700 shadow-card transition hover:border-ink hover:text-ink"
-          title="Zoom to fit the full route"
+          aria-label="Zoom in"
+          title="Zoom in"
+          disabled={zoomLevel >= MAX_ZOOM}
+          onClick={() => mapRef.current?.zoomIn()}
+          className={controlBtn}
         >
-          Fit route
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom out"
+          title="Zoom out"
+          disabled={zoomLevel <= MIN_ZOOM}
+          onClick={() => mapRef.current?.zoomOut()}
+          className={controlBtn}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+            <path d="M5 12h14" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom to fit the full route"
+          title="Fit route"
+          onClick={() => mapRef.current && fitToRoute(mapRef.current, route.geometry)}
+          className={controlBtn}
+        >
+          <CrosshairIcon size={16} />
         </button>
       </div>
 
-      {/* Legend */}
-      <div className="absolute bottom-3 left-3 z-[500] rounded-lg border border-line bg-white/95 px-3 py-2 text-[11px] shadow-card backdrop-blur">
-        <p className="mb-1 font-semibold text-night-900">Legend</p>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-          {[
-            ["CURRENT", "Current location"],
-            ["PICKUP", "Pickup (1 h)"],
-            ["DROPOFF", "Dropoff (1 h)"],
-            ["FUEL", "Fuel stop (30 min)"],
-            ["REST_BREAK", "30-min break"],
-            ["SLEEPER_BERTH", "Overnight rest (10 h)"],
-            ["RESTART_34H", "34-hour restart"],
-          ].map(([type, label]) => {
-            const count =
-              type === "CURRENT"
-                ? 1
-                : counts[type] ?? 0;
-            return (
-              <div key={type} className="flex items-center gap-1.5">
-                <span
-                  className="inline-block h-3 w-3 flex-none rounded-full border border-white shadow-sm"
-                  style={{ backgroundColor: MARKER_STYLES[type]?.bg ?? "#64748b" }}
-                />
-                <span className="text-night-700">{label}</span>
-                {count > 0 && (
+      {/* Compact collapsible legend */}
+      <div className="absolute bottom-3 left-3 z-[500] max-w-[calc(100%-5.5rem)] overflow-hidden rounded-lg border border-line bg-white/95 shadow-pop backdrop-blur">
+        <button
+          type="button"
+          onClick={() => setLegendOpen((v) => !v)}
+          aria-expanded={legendOpen}
+          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold text-night-900"
+        >
+          <span className="flex items-center gap-1.5">
+            <MapPinIcon size={12} className="text-night-500" />
+            Legend
+          </span>
+          {legendOpen ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
+        </button>
+        {legendOpen && (
+          <div className="grid grid-cols-1 gap-x-4 gap-y-1 px-3 pb-2 text-[11px] sm:grid-cols-2">
+            {[
+              ["CURRENT", "Current location"],
+              ["PICKUP", "Pickup (1 h)"],
+              ["DROPOFF", "Dropoff (1 h)"],
+              ["FUEL", "Fuel stop (30 min)"],
+              ["REST_BREAK", "30-min break"],
+              ["SLEEPER_BERTH", "Overnight rest (10 h)"],
+              ["RESTART_34H", "34-hour restart"],
+            ].map(([type, label]) => {
+              const count = type === "CURRENT" ? 1 : counts[type] ?? 0;
+              if (type !== "CURRENT" && count === 0) return null;
+              return (
+                <div key={type} className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-3 w-3 flex-none rounded-full border border-white shadow-sm"
+                    style={{ backgroundColor: MARKER_STYLES[type]?.bg ?? "#64748b" }}
+                  />
+                  <span className="text-night-700">{label}</span>
                   <span className="rounded bg-canvas px-1 font-semibold tabular-nums text-night-700">
                     {count}
                   </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

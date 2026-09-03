@@ -20,6 +20,16 @@ export default function EldLogsPanel({ payload }: { payload: PlanPayload }) {
   const [viewingDay, setViewingDay] = useState<number | null>(null);
   const { logs, trip } = payload;
 
+  // Lock body scroll while the full-screen viewer is open.
+  useEffect(() => {
+    if (viewingDay === null) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [viewingDay]);
+
   return (
     <section className="mt-8 rounded-2xl border border-line bg-white shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
@@ -75,7 +85,7 @@ export default function EldLogsPanel({ payload }: { payload: PlanPayload }) {
                 alt={`Daily ELD log sheet preview for day ${log.day_number}, ${log.date}`}
                 loading="lazy"
                 decoding="async"
-                className="mx-auto block h-36 w-auto rounded border border-line bg-white object-contain shadow-sm transition group-hover:border-brand-300"
+                className="mx-auto block w-full rounded border border-line bg-white shadow-sm transition group-hover:border-brand-300"
               />
             </button>
 
@@ -238,14 +248,15 @@ function LogViewerModal({
           </div>
         </div>
         <div className="thin-scroll flex-1 overflow-auto rounded-lg bg-white">
+          {/** Zoom is applied ONLY via width — combining width% with transform
+              scale double-scaled the image (4x at zoom step 2). */}
           <img
             src={logImageUrl(payload, log.day_number)}
             alt={`Daily ELD log sheet for day ${log.day_number}, ${log.date}`}
-            className="mx-auto block origin-top transition-transform"
+            className="mx-auto block"
             style={{
-              transform: `scale(${zoom})`,
-              width: `${Math.round(100 * Math.max(1, zoom))}%`,
-              maxWidth: "none",
+              width: `${Math.round(zoom * 100)}%`,
+              maxWidth: zoom > 1 ? "none" : "100%",
             }}
           />
         </div>

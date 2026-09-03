@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import LocationInput from "@/components/LocationInput";
+import RoutePreview from "@/features/trip-planner/RoutePreview";
 import {
   ArrowRightIcon,
   FlagIcon,
@@ -340,6 +341,14 @@ export default function TripPlannerForm({ isSubmitting, onSubmit }: Props) {
             </div>
           )}
         </div>
+
+        {/* Real-time estimate — live distance/driving/compliance while typing */}
+        <RoutePreview
+          currentLocation={currentLocation}
+          pickupLocation={pickupLocation}
+          dropoffLocation={dropoffLocation}
+          cycleUsed={cycleUsed}
+        />
 
         {localError && (
           <p

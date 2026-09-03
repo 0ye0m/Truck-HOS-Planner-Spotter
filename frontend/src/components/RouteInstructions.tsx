@@ -6,6 +6,16 @@ import type { PlanPayload } from "@/types";
  * Turn-by-turn route instructions per leg (OSRM steps), collapsible to
  * keep the page tidy on long routes.
  */
+const NOISE_STEP =
+  /^(keep (left|right|straight)|continue (straight)?|slight (left|right)|turn (slight )?(left|right))\.?$/i;
+
+/** Drop zero-information maneuvers ("Keep left", < 0.25 mi, no street name). */
+function meaningfulSteps(steps: { instruction: string; distance_miles: number }[]) {
+  return steps.filter(
+    (s) => !(NOISE_STEP.test(s.instruction.trim()) && s.distance_miles < 0.25)
+  );
+}
+
 export default function RouteInstructions({ payload }: { payload: PlanPayload }) {
   const [openLeg, setOpenLeg] = useState<number | null>(0);
   const { legs, provider } = payload.route;
@@ -49,12 +59,12 @@ export default function RouteInstructions({ payload }: { payload: PlanPayload })
               </button>
               {open && (
                 <ol className="mt-2 space-y-1.5 border-l-2 border-line pl-4">
-                  {leg.steps.length === 0 && (
+                  {meaningfulSteps(leg.steps).length === 0 && (
                     <li className="text-xs text-night-500">
                       No step-by-step instructions available for this leg.
                     </li>
                   )}
-                  {leg.steps.map((step, i) => (
+                  {meaningfulSteps(leg.steps).map((step, i) => (
                     <li key={i} className="text-xs leading-relaxed text-night-700">
                       {step.instruction}
                       {step.distance_miles > 0.1 && (
