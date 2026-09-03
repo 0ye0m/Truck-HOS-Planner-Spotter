@@ -113,3 +113,18 @@ class DailyLog(models.Model):
 
     def __str__(self) -> str:
         return f"Day {self.day_number} log for trip #{self.trip_id} ({self.date})"
+
+
+class RenderedMedia(models.Model):
+    """Generated ELD files stored in PostgreSQL."""
+
+    name = models.CharField(max_length=512, unique=True)
+    content = models.BinaryField()
+    content_type = models.CharField(max_length=100, default="application/octet-stream")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.name

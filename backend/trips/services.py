@@ -1,16 +1,23 @@
-"""
-Trip planning pipeline (the ONE canonical schedule).
+"""Trip planning service.
 
-    Trip inputs
-        ↓ geocoding (Nominatim)
-        ↓ routing (OSRM)
-        ↓ HOS scheduler (hos/)
-        ↓ canonical activity timeline
-        ├── map / route instructions / HOS summary
-        └── daily ELD logs (eldlogs/)
+This module contains the canonical trip-planning pipeline:
 
-Map, timeline, summary and logs all consume this single timeline — there is
-never a second scheduling calculation.
+    Input
+      ↓
+    Geocoding
+      ↓
+    Routing
+      ↓
+    HOS scheduling
+      ↓
+    Validation
+      ↓
+    Persistence
+      ↓
+    ELD rendering
+
+The same canonical schedule is used for the route, timeline, HOS summary,
+and daily ELD logs.
 """
 
 from __future__ import annotations
@@ -21,6 +28,10 @@ from datetime import date, datetime, time as dt_time
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
+from django.utils import timezone as dj_tz
+
+from eldlogs.pdf import image_to_png_bytes
+from eldlogs.renderer import render_daily_log
 from hos import (
     ActivityType,
     GeoPoint,
@@ -32,9 +43,6 @@ from hos import (
 )
 from hos.daily import cycle_used_at_day_starts
 from hos.exceptions import HosEngineError, InfeasibleTripError
-
-from django.utils import timezone as dj_tz
-
 from routing.geocoder import GeocodeResult, Geocoder, GeocodingError
 from routing.router import RouteResult, RoutingError, RoutingService
 from routing.stops import label_stop
@@ -42,13 +50,18 @@ from routing.us_states import timezone_for_state
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_START_TIME = dt_time(6, 0)  # documented assumed departure
+DEFAULT_START_TIME = dt_time(6, 0)
 
 
 class TripPlanningError(Exception):
     """User-facing pipeline error with a safe message."""
 
-    def __init__(self, message: str, code: str = "planning-failed", details: Any = None):
+    def __init__(
+        self,
+        message: str,
+        code: str = "planning-failed",
+        details: Any = None,
+    ):
         super().__init__(message)
         self.message = message
         self.code = code
@@ -57,14 +70,7 @@ class TripPlanningError(Exception):
 
 @dataclass
 class PreparedTrip:
-    """
-    Everything produced by the shared preparation stage:
-
-    geocoding -> time base -> routing -> HOS scheduling.
-
-    Used by BOTH the full plan pipeline and the dry-run validate endpoint,
-    so the two can never drift apart.
-    """
+    """Everything produced by the shared preparation stage."""
 
     current: GeocodeResult
     pickup: GeocodeResult
@@ -74,11 +80,13 @@ class PreparedTrip:
     assumed_start_time: bool
     leg_results: list
     legs: list[RouteLeg]
-    schedule: Schedule
+    schedule: Any
 
 
 @dataclass
 class TripInput:
+    """Validated input for a trip-planning request."""
+
     current_location: str
     pickup_location: str
     dropoff_location: str
@@ -91,7 +99,7 @@ class TripInput:
     trailer_number: str = ""
     main_office: str = ""
     co_driver: str = ""
-    timezone: str = ""           # optional explicit home-terminal tz
+    timezone: str = ""
     assumed_start_time: bool = True
 
 
@@ -108,18 +116,24 @@ class TripPlanner:
 
     def prepare(self, data: TripInput) -> PreparedTrip:
         """
-        Shared preparation stage (geocode → time base → route → schedule).
+        Shared preparation stage:
 
-        Raises TripPlanningError with a safe, user-facing message on any
-        failure. No persistence happens here.
+        geocode → time base → route → HOS schedule
+
+        No database persistence or rendering happens here.
         """
-        # 1. Geocode the three locations --------------------------------
+
+        # 1. Geocode the three locations
         current = self._geocode(data.current_location)
         pickup = self._geocode(data.pickup_location)
         dropoff = self._geocode(data.dropoff_location)
 
-        # 2. Home-terminal time zone + start datetime --------------------
-        tz_name = data.timezone or timezone_for_state(current.state, "America/Chicago")
+        # 2. Home-terminal time zone + start datetime
+        tz_name = data.timezone or timezone_for_state(
+            current.state,
+            "America/Chicago",
+        )
+
         try:
             tzinfo = ZoneInfo(tz_name)
         except Exception:
@@ -129,26 +143,48 @@ class TripPlanner:
         assumed = data.start_time is None
         start_time = data.start_time or DEFAULT_START_TIME
         start_date = data.start_date or dj_tz.localdate()
-        start_local = datetime.combine(start_date, start_time).replace(tzinfo=tzinfo)
 
-        # 3. Route (two legs: current→pickup, pickup→dropoff) ------------
+        start_local = datetime.combine(
+            start_date,
+            start_time,
+        ).replace(tzinfo=tzinfo)
+
+        # 3. Route
         leg_results = [
             self._route(current, pickup),
             self._route(pickup, dropoff),
         ]
-        zero_miles = all(r.distance_miles < 1e-6 for r in leg_results)
+
+        zero_miles = all(
+            result.distance_miles < 1e-6
+            for result in leg_results
+        )
+
         if zero_miles:
             raise TripPlanningError(
-                "The route between these locations has zero length. Please "
-                "check the pickup and dropoff locations.",
+                "The route between these locations has zero length. "
+                "Please check the pickup and dropoff locations.",
                 "zero-distance-route",
             )
 
-        endpoints = [self._triplet(current), self._triplet(pickup), self._triplet(dropoff)]
+        endpoints = [
+            self._triplet(current),
+            self._triplet(pickup),
+            self._triplet(dropoff),
+        ]
+
         legs = [
             RouteLeg(
-                start=GeoPoint(name=endpoints[i][0], lat=endpoints[i][1], lon=endpoints[i][2]),
-                end=GeoPoint(name=endpoints[i + 1][0], lat=endpoints[i + 1][1], lon=endpoints[i + 1][2]),
+                start=GeoPoint(
+                    name=endpoints[i][0],
+                    lat=endpoints[i][1],
+                    lon=endpoints[i][2],
+                ),
+                end=GeoPoint(
+                    name=endpoints[i + 1][0],
+                    lat=endpoints[i + 1][1],
+                    lon=endpoints[i + 1][2],
+                ),
                 distance_miles=leg_results[i].distance_miles,
                 duration_hours=leg_results[i].duration_hours,
                 geometry=leg_results[i].geometry,
@@ -156,7 +192,7 @@ class TripPlanner:
             for i in range(2)
         ]
 
-        # 4. HOS scheduling (deterministic engine) ------------------------
+        # 4. HOS scheduling
         try:
             schedule = generate_schedule(
                 legs,
@@ -165,9 +201,15 @@ class TripPlanner:
                 config=SchedulerConfig(),
             )
         except InfeasibleTripError as exc:
-            raise TripPlanningError(exc.explanation, exc.rule)
+            raise TripPlanningError(
+                exc.explanation,
+                exc.rule,
+            )
         except HosEngineError as exc:
-            raise TripPlanningError(str(exc), "hos-engine-error")
+            raise TripPlanningError(
+                str(exc),
+                "hos-engine-error",
+            )
 
         return PreparedTrip(
             current=current,
@@ -185,11 +227,23 @@ class TripPlanner:
         prepared = self.prepare(data)
         schedule = prepared.schedule
 
-        # 5. Validate BEFORE serving — never serve a violating schedule ---
-        violations = validate_schedule(schedule, data.current_cycle_used)
-        errors = [v for v in violations if v["severity"] == "error"]
+        # 5. Validate before serving
+        violations = validate_schedule(
+            schedule,
+            data.current_cycle_used,
+        )
+
+        errors = [
+            violation
+            for violation in violations
+            if violation["severity"] == "error"
+        ]
+
         if errors:
-            logger.error("Generated schedule has violations: %s", errors)
+            logger.error(
+                "Generated schedule has violations: %s",
+                errors,
+            )
             raise TripPlanningError(
                 "The generated schedule failed internal validation. "
                 "Please try different inputs.",
@@ -197,14 +251,18 @@ class TripPlanner:
                 details=errors,
             )
 
-        # 6. Enrich stop locations with real place labels -----------------
+        # 6. Enrich stop locations
         self._enrich_locations(schedule)
 
-        # 7. Split into daily logs (single source for logs + map) ---------
+        # 7. Split into daily logs
         daily_logs = split_into_daily_logs(schedule)
-        cycle_at_day = cycle_used_at_day_starts(schedule, data.current_cycle_used)
 
-        # 8. Persist + render ---------------------------------------------
+        cycle_at_day = cycle_used_at_day_starts(
+            schedule,
+            data.current_cycle_used,
+        )
+
+        # 8. Persist + render
         return self._build_payload(
             data=data,
             tz_name=prepared.tz_name,
@@ -220,45 +278,86 @@ class TripPlanner:
         )
 
     # ------------------------------------------------------------------
-    # Steps
+    # Helpers
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _triplet(result: GeocodeResult) -> tuple[str, float, float]:
-        """(clean 'City, ST' label, lat, lon) for a geocoded location."""
+    def _triplet(
+        result: GeocodeResult,
+    ) -> tuple[str, float, float]:
+        """Return clean (City, ST) label + coordinates."""
+
         from routing.us_states import state_abbreviation
 
         city = result.city or result.display_name.split(",")[0]
         state = state_abbreviation(result.state)
-        label = f"{city}, {state}".strip(", ") if state else city or result.display_name
-        return (label or result.display_name, result.lat, result.lon)
+
+        label = (
+            f"{city}, {state}".strip(", ")
+            if state
+            else city or result.display_name
+        )
+
+        return (
+            label or result.display_name,
+            result.lat,
+            result.lon,
+        )
 
     def _geocode(self, address: str) -> GeocodeResult:
         try:
             return self.geocoder.geocode(address)
         except GeocodingError as exc:
-            raise TripPlanningError(exc.message, exc.kind)
+            raise TripPlanningError(
+                exc.message,
+                exc.kind,
+            )
 
-    def _route(self, start: GeocodeResult, end: GeocodeResult) -> RouteResult:
+    def _route(
+        self,
+        start: GeocodeResult,
+        end: GeocodeResult,
+    ) -> RouteResult:
         try:
-            return self.router.route([(start.lat, start.lon), (end.lat, end.lon)])
+            return self.router.route(
+                [
+                    (start.lat, start.lon),
+                    (end.lat, end.lon),
+                ]
+            )
         except RoutingError as exc:
-            raise TripPlanningError(exc.message, exc.kind)
+            raise TripPlanningError(
+                exc.message,
+                exc.kind,
+            )
 
     def _enrich_locations(self, schedule) -> None:
-        """Give mid-route stops real 'City, ST' labels (never invented)."""
+        """Give mid-route stops real City, ST labels."""
+
         for activity in schedule.activities:
             if activity.location.name:
                 continue
-            if activity.location.lat is None or activity.location.lon is None:
+
+            if (
+                activity.location.lat is None
+                or activity.location.lon is None
+            ):
                 activity.location.name = {
                     ActivityType.FUEL: "Planned fuel stop",
                     ActivityType.REST_BREAK: "Planned rest stop",
-                    ActivityType.SLEEPER_BERTH: "Planned overnight rest stop",
-                    ActivityType.RESTART_34H: "Planned 34-hour restart location",
+                    ActivityType.SLEEPER_BERTH: (
+                        "Planned overnight rest stop"
+                    ),
+                    ActivityType.RESTART_34H: (
+                        "Planned 34-hour restart location"
+                    ),
                     ActivityType.DRIVING: "En route",
-                }.get(activity.type, "En route")
+                }.get(
+                    activity.type,
+                    "En route",
+                )
                 continue
+
             activity.location.name = label_stop(
                 self.geocoder,
                 activity.location.lat,
@@ -271,9 +370,12 @@ class TripPlanner:
     # ------------------------------------------------------------------
 
     def _build_payload(self, **ctx) -> dict[str, Any]:
-        from eldlogs.pdf import image_to_png_bytes
-        from eldlogs.renderer import render_daily_log
-        from trips.models import DailyLog, Route, ScheduledActivity, Trip
+        from trips.models import (
+            DailyLog,
+            Route,
+            ScheduledActivity,
+            Trip,
+        )
 
         data: TripInput = ctx["data"]
         schedule = ctx["schedule"]
@@ -297,39 +399,70 @@ class TripPlanner:
             co_driver=data.co_driver,
         )
 
+        # ------------------------------------------------------------------
+        # Route
+        # ------------------------------------------------------------------
+
         leg_payload = []
+
         for index, result in enumerate(ctx["leg_results"]):
-            steps = [s for leg in result.legs for s in leg.steps][:200]
+            steps = [
+                step
+                for leg in result.legs
+                for step in leg.steps
+            ][:200]
+
             leg_payload.append(
                 {
                     "leg_index": index,
-                    "distance_miles": round(result.distance_miles, 1),
-                    "duration_hours": round(result.duration_hours, 2),
+                    "distance_miles": round(
+                        result.distance_miles,
+                        1,
+                    ),
+                    "duration_hours": round(
+                        result.duration_hours,
+                        2,
+                    ),
                     "steps": [
                         {
-                            "instruction": s.instruction,
-                            "name": s.name,
-                            "distance_miles": round(s.distance_miles, 1),
-                            "maneuver": s.maneuver,
-                            "modifier": s.modifier,
+                            "instruction": step.instruction,
+                            "name": step.name,
+                            "distance_miles": round(
+                                step.distance_miles,
+                                1,
+                            ),
+                            "maneuver": step.maneuver,
+                            "modifier": step.modifier,
                         }
-                        for s in steps
+                        for step in steps
                     ],
                 }
             )
 
-        geometry = [coord for result in ctx["leg_results"] for coord in result.geometry]
+        geometry = [
+            coord
+            for result in ctx["leg_results"]
+            for coord in result.geometry
+        ]
+
         Route.objects.create(
             trip=trip,
             distance_miles=schedule.total_distance_miles,
-            duration_hours=sum(r.duration_hours for r in ctx["leg_results"]),
+            duration_hours=sum(
+                result.duration_hours
+                for result in ctx["leg_results"]
+            ),
             geometry=geometry,
             legs=leg_payload,
             provider="OSRM",
         )
 
-        # --- activities ---------------------------------------------------
+        # ------------------------------------------------------------------
+        # Activities
+        # ------------------------------------------------------------------
+
         activity_payload = []
+
         for activity in schedule.activities:
             ScheduledActivity.objects.create(
                 trip=trip,
@@ -347,17 +480,25 @@ class TripPlanner:
                 leg_index=activity.leg_index,
                 miles_into_leg=activity.miles_into_leg,
             )
-            activity_payload.append(self._activity_json(activity))
 
-        # --- daily logs + rendering ---------------------------------------
+            activity_payload.append(
+                self._activity_json(activity)
+            )
+
+        # ------------------------------------------------------------------
+        # Daily logs
+        # ------------------------------------------------------------------
+
         cumulative_miles: dict[str, float] = {}
         running = 0.0
+
         for log in daily_logs:
             running += log.miles
             cumulative_miles[log.date.isoformat()] = running
 
         cycle_map = {
-            day.isoformat(): hours for day, hours in ctx["cycle_at_day"].items()
+            day.isoformat(): hours
+            for day, hours in ctx["cycle_at_day"].items()
         }
 
         trip_data = {
@@ -374,46 +515,103 @@ class TripPlanner:
         }
 
         log_payload = []
+
         for log in daily_logs:
-            image = render_daily_log(log, schedule, trip_data)
-            filename = f"trips/{trip.pk}/log_day_{log.day_number}.png"
-            path = self._save_media(filename, image_to_png_bytes(image))
+            # Render the ELD sheet.
+            image = render_daily_log(
+                log,
+                schedule,
+                trip_data,
+            )
+
+            # Logical filename only.
+            #
+            # The actual PNG bytes are stored in PostgreSQL through
+            # _save_media(), not on Render's ephemeral filesystem.
+            filename = (
+                f"trips/{trip.pk}/"
+                f"log_day_{log.day_number}.png"
+            )
+
+            self._save_media(
+                filename,
+                image_to_png_bytes(image),
+            )
+
             DailyLog.objects.create(
                 trip=trip,
                 date=log.date,
                 day_number=log.day_number,
-                off_duty_hours=log.off_duty_minutes / 60.0,
-                sleeper_hours=log.sleeper_minutes / 60.0,
-                driving_hours=log.driving_minutes / 60.0,
-                on_duty_hours=log.on_duty_minutes / 60.0,
+                off_duty_hours=(
+                    log.off_duty_minutes / 60.0
+                ),
+                sleeper_hours=(
+                    log.sleeper_minutes / 60.0
+                ),
+                driving_hours=(
+                    log.driving_minutes / 60.0
+                ),
+                on_duty_hours=(
+                    log.on_duty_minutes / 60.0
+                ),
                 miles=log.miles,
                 remarks=[
-                    [t.isoformat(), text] for t, text in log.remarks
+                    [t.isoformat(), text]
+                    for t, text in log.remarks
                 ],
                 rendered_file=filename,
             )
+
             log_payload.append(
                 {
                     "day_number": log.day_number,
                     "date": log.date.isoformat(),
-                    "off_duty_hours": round(log.off_duty_minutes / 60.0, 2),
-                    "sleeper_hours": round(log.sleeper_minutes / 60.0, 2),
-                    "driving_hours": round(log.driving_minutes / 60.0, 2),
-                    "on_duty_hours": round(log.on_duty_minutes / 60.0, 2),
+                    "off_duty_hours": round(
+                        log.off_duty_minutes / 60.0,
+                        2,
+                    ),
+                    "sleeper_hours": round(
+                        log.sleeper_minutes / 60.0,
+                        2,
+                    ),
+                    "driving_hours": round(
+                        log.driving_minutes / 60.0,
+                        2,
+                    ),
+                    "on_duty_hours": round(
+                        log.on_duty_minutes / 60.0,
+                        2,
+                    ),
                     "total_hours": 24.0,
-                    "miles": round(log.miles, 1),
+                    "miles": round(
+                        log.miles,
+                        1,
+                    ),
                     "remarks": [
-                        {"time": t.strftime("%H:%M"), "text": text}
+                        {
+                            "time": t.strftime("%H:%M"),
+                            "text": text,
+                        }
                         for t, text in log.remarks
                     ],
-                    "image_url": f"/media/{filename}",
+                    "image_url": (
+                        f"/api/media/{filename}"
+                    ),
                 }
             )
 
-        # --- markers for the map ------------------------------------------
+        # ------------------------------------------------------------------
+        # Map markers
+        # ------------------------------------------------------------------
+
         markers = self._build_markers(schedule)
 
+        # ------------------------------------------------------------------
+        # HOS summary
+        # ------------------------------------------------------------------
+
         hos = schedule.hos
+
         payload = {
             "trip": {
                 "id": trip.pk,
@@ -421,67 +619,154 @@ class TripPlanner:
                 "pickup_location": trip.pickup_location,
                 "dropoff_location": trip.dropoff_location,
                 "current_cycle_used": trip.current_cycle_used,
-                "start_datetime": schedule.start.isoformat() if schedule.start else None,
+                "start_datetime": (
+                    schedule.start.isoformat()
+                    if schedule.start
+                    else None
+                ),
                 "assumed_start_time": trip.assumed_start_time,
-                "home_terminal_timezone": trip.home_terminal_timezone,
-                "driver_name": data.driver_name or "Not provided",
-                "carrier_name": data.carrier_name or "Not provided",
-                "truck_number": data.truck_number or "Not provided",
-                "trailer_number": data.trailer_number or "Not provided",
-                "main_office": data.main_office or "Not provided",
+                "home_terminal_timezone": (
+                    trip.home_terminal_timezone
+                ),
+                "driver_name": (
+                    data.driver_name or "Not provided"
+                ),
+                "carrier_name": (
+                    data.carrier_name or "Not provided"
+                ),
+                "truck_number": (
+                    data.truck_number or "Not provided"
+                ),
+                "trailer_number": (
+                    data.trailer_number or "Not provided"
+                ),
+                "main_office": (
+                    data.main_office or "Not provided"
+                ),
                 "co_driver": data.co_driver or "",
                 "created_at": trip.created_at.isoformat(),
             },
             "route": {
-                "distance_miles": round(schedule.total_distance_miles, 1),
+                "distance_miles": round(
+                    schedule.total_distance_miles,
+                    1,
+                ),
                 "duration_hours": round(
-                    sum(r.duration_hours for r in ctx["leg_results"]), 2
+                    sum(
+                        result.duration_hours
+                        for result in ctx["leg_results"]
+                    ),
+                    2,
                 ),
                 "geometry": geometry,
                 "legs": leg_payload,
                 "provider": "OSRM (open source routing)",
             },
             "schedule": {
-                "start": schedule.start.isoformat() if schedule.start else None,
-                "end": schedule.end.isoformat() if schedule.end else None,
+                "start": (
+                    schedule.start.isoformat()
+                    if schedule.start
+                    else None
+                ),
+                "end": (
+                    schedule.end.isoformat()
+                    if schedule.end
+                    else None
+                ),
                 "activities": activity_payload,
                 "restart_used": schedule.restart_used,
             },
             "hos_summary": {
                 "schedulable": True,
-                "cycle_used_before": round(hos.cycle_used_before, 2),
-                "cycle_planned": round(hos.cycle_planned, 2),
-                "cycle_remaining_after": round(hos.cycle_remaining_after, 2),
-                "driving_used_in_period": round(hos.driving_used_in_period, 2),
-                "driving_remaining_in_period": round(
-                    hos.driving_remaining_in_period, 2
+                "cycle_used_before": round(
+                    hos.cycle_used_before,
+                    2,
                 ),
-                "window_used_hours": round(hos.window_used_hours, 2),
-                "window_remaining_hours": round(hos.window_remaining_hours, 2),
+                "cycle_planned": round(
+                    hos.cycle_planned,
+                    2,
+                ),
+                "cycle_remaining_after": round(
+                    hos.cycle_remaining_after,
+                    2,
+                ),
+                "driving_used_in_period": round(
+                    hos.driving_used_in_period,
+                    2,
+                ),
+                "driving_remaining_in_period": round(
+                    hos.driving_remaining_in_period,
+                    2,
+                ),
+                "window_used_hours": round(
+                    hos.window_used_hours,
+                    2,
+                ),
+                "window_remaining_hours": round(
+                    hos.window_remaining_hours,
+                    2,
+                ),
                 "next_break_in_hours": (
-                    round(hos.next_break_in_hours, 2)
+                    round(
+                        hos.next_break_in_hours,
+                        2,
+                    )
                     if hos.next_break_in_hours is not None
                     else None
                 ),
                 "next_rest_hours": hos.next_rest_hours,
                 "restart_used": schedule.restart_used,
-                "total_driving_hours": round(schedule.total_driving_hours, 2),
-                "total_on_duty_hours": round(schedule.total_on_duty_hours, 2),
+                "total_driving_hours": round(
+                    schedule.total_driving_hours,
+                    2,
+                ),
+                "total_on_duty_hours": round(
+                    schedule.total_on_duty_hours,
+                    2,
+                ),
                 "violations": ctx["violations"],
             },
             "markers": markers,
             "logs": log_payload,
         }
+
         return payload
 
-    @staticmethod
-    def _save_media(filename: str, content: bytes) -> str:
-        """Save rendered bytes under MEDIA_ROOT and return relative path."""
-        from django.core.files.base import ContentFile
-        from django.core.files.storage import default_storage
+    # ------------------------------------------------------------------
+    # Database-backed media storage
+    # ------------------------------------------------------------------
 
-        default_storage.save(filename, ContentFile(content))
+    @staticmethod
+    def _save_media(
+        filename: str,
+        content: bytes,
+    ) -> str:
+        """
+        Store generated ELD media in PostgreSQL.
+
+        Render's free filesystem is ephemeral, so generated files must
+        not depend on the local filesystem surviving a restart or
+        redeploy.
+
+        The filename is kept in DailyLog.rendered_file so existing
+        application data remains compatible.
+        """
+
+        from trips.models import RenderedMedia
+
+        RenderedMedia.objects.update_or_create(
+            name=filename,
+            defaults={
+                "content": content,
+                "content_type": "image/png",
+            },
+        )
+
         return filename
+
+    # ------------------------------------------------------------------
+    # Serialization helpers
+    # ------------------------------------------------------------------
 
     @staticmethod
     def _activity_json(activity) -> dict[str, Any]:
@@ -492,9 +777,18 @@ class TripPlanner:
             "label": activity.label,
             "start": activity.start.isoformat(),
             "end": activity.end.isoformat(),
-            "duration_minutes": round(activity.duration_minutes, 1),
-            "distance_miles": round(activity.distance_miles, 1),
-            "location": activity.location.name or "En route",
+            "duration_minutes": round(
+                activity.duration_minutes,
+                1,
+            ),
+            "distance_miles": round(
+                activity.distance_miles,
+                1,
+            ),
+            "location": (
+                activity.location.name
+                or "En route"
+            ),
             "lat": activity.location.lat,
             "lon": activity.location.lon,
             "note": activity.note,
@@ -503,8 +797,10 @@ class TripPlanner:
 
     @staticmethod
     def _build_markers(schedule) -> list[dict[str, Any]]:
-        """Map markers derived ONLY from the canonical schedule."""
+        """Map markers derived only from the canonical schedule."""
+
         markers = []
+
         for activity in schedule.activities:
             if activity.type in (
                 ActivityType.DRIVING,
@@ -512,24 +808,34 @@ class TripPlanner:
                 ActivityType.REST_BREAK,
             ):
                 continue
+
             if activity.location.lat is None:
                 continue
+
             markers.append(
                 {
                     "type": activity.type.value,
                     "label": activity.label,
-                    "location": activity.location.name or "En route",
+                    "location": (
+                        activity.location.name
+                        or "En route"
+                    ),
                     "lat": activity.location.lat,
                     "lon": activity.location.lon,
                     "arrival": activity.start.isoformat(),
                     "departure": activity.end.isoformat(),
-                    "duration_minutes": round(activity.duration_minutes, 1),
+                    "duration_minutes": round(
+                        activity.duration_minutes,
+                        1,
+                    ),
                     "note": activity.note,
                 }
             )
+
         return markers
 
 
 def plan_trip(data: TripInput) -> dict[str, Any]:
     """Module-level convenience wrapper."""
+
     return TripPlanner().plan(data)
