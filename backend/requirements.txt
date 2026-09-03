@@ -8,3 +8,4 @@ python-dotenv==1.2.3
 reportlab==5.0.1
 requests==2.34.2
 whitenoise==6.12.0
+psycopg[binary]>=3.2,<4
