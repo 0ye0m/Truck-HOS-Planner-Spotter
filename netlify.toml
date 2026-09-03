@@ -1,0 +1,30 @@
+# ── TruckHOS Planner — Netlify config (frontend alternative) ───────
+# Same behavior as vercel.json: builds frontend/dist and proxies /api
+# and /media to the Django backend, so the browser stays same-origin
+# (no CORS setup needed).
+#
+# Replace REPLACE-WITH-YOUR-BACKEND with your Render backend origin.
+
+[build]
+  base = "frontend"
+  command = "npm install && npm run build"
+  publish = "dist"
+
+# Proxy API + media to the backend (status 200 = transparent rewrite)
+[[redirects]]
+  from = "/api/*"
+  to = "https://REPLACE-WITH-YOUR-BACKEND.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/media/*"
+  to = "https://REPLACE-WITH-YOUR-BACKEND.onrender.com/media/:splat"
+  status = 200
+  force = true
+
+# SPA fallback — serve index.html for client-side routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

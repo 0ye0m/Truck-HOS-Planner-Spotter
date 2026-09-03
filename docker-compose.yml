@@ -1,0 +1,36 @@
+# ── TruckHOS Planner — one-command production stack ────────────────
+#   docker compose up --build
+#
+#   frontend  http://localhost:8080   (nginx: SPA + /api,/media proxy)
+#   backend   http://localhost:8000   (gunicorn: Django REST API)
+#
+# SQLite lives on the `db` volume; rendered ELD sheets on `media`.
+# To use PostgreSQL instead, add a `db` service and set DATABASE_URL.
+
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-in-production}
+      DJANGO_DEBUG: "0"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
+      CORS_ALLOWED_ORIGINS: "http://localhost:8080"
+      SQLITE_PATH: /data/db.sqlite3
+    volumes:
+      - db:/data                   # SQLite data file (see SQLITE_PATH)
+      - media:/app/media           # rendered ELD log sheets (PNG/PDF)
+    ports:
+      - "8000:8000"                # optional: reach the API directly
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  db:
+  media:

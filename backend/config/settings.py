@@ -94,7 +94,9 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            # SQLITE_PATH lets containers put the file on a mounted
+            # volume (docker-compose mounts a named volume at /data).
+            "NAME": Path(os.getenv("SQLITE_PATH", BASE_DIR / "db.sqlite3")),
         }
     }
 

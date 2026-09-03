@@ -1,201 +1,172 @@
-# TruckHOS Planner 🛣️
+<div align="center">
 
-**Plan FMCSA-compliant truck routes and generate daily ELD driver logs.**
+# 🛣️ TruckHOS Planner
 
-A production-quality full-stack application built for the Full Stack Developer
-assessment. Enter trip details, and the app computes a legal driving schedule
-under FMCSA property-carrier Hours of Service rules, displays the route and
-all required stops on an interactive map, and generates accurately filled
-Daily Driver's Log / ELD sheets — one per calendar day for long trips.
+**Plan FMCSA-compliant truck trips and generate filled daily ELD driver logs.**
 
-> ⚠️ **Disclaimer:** this application implements the assumptions specified in
-> the assessment and should not be treated as legal/compliance advice.
+React + TypeScript · Django + Django REST Framework · OpenStreetMap stack
 
----
+[![Backend tests](https://img.shields.io/badge/backend%20tests-80%20pass-brightgreen)](#testing)
+[![Frontend tests](https://img.shields.io/badge/frontend%20tests-37%20pass-brightgreen)](#testing)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)](https://www.typescriptlang.org/)
+[![React 18](https://img.shields.io/badge/React-18-61dafb)](https://react.dev/)
+[![Django](https://img.shields.io/badge/Django-6.1-44b78b)](https://www.djangoproject.com/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-informational)](#license)
 
-## Table of contents
+[Live demo](#-live-demo) · [Features](#-features) · [How HOS scheduling works](#-hos-scheduling-logic) · [API](#-api-documentation) · [Deploy](#-deployment)
 
-1. [Live demo](#live-demo)
-2. [Tech stack](#tech-stack)
-3. [Architecture](#architecture)
-4. [How it works](#how-it-works)
-5. [HOS scheduling logic](#hos-scheduling-logic)
-6. [API documentation](#api-documentation)
-7. [ELD log rendering](#eld-log-rendering)
-8. [Testing](#testing)
-9. [Local development](#local-development)
-10. [Deployment](#deployment)
-11. [Assumptions & known limitations](#assumptions--known-limitations)
+</div>
 
 ---
 
-## Live demo
+> ⚠️ **Disclaimer** — this application implements the assumptions specified in the
+> assessment brief. It is a demonstration project, **not** legal or compliance advice
+> and **not** a certified ELD.
 
-| Piece | Where |
+## 📸 Screenshots
+
+| | |
 |---|---|
-| Frontend (React + TypeScript) | hosted on Vercel — see deployment notes below |
-| Backend (Django + DRF) | hosted on Render — see deployment notes below |
+| ![Trip planner — clean marketplace-style form with live US location suggestions and a real-time estimate strip](docs/screenshots/home.png) | ![Full results — trip summary, live HOS availability bars, route map, timeline](docs/screenshots/plan-results.png) |
+| **Trip planner** — real-time location selectors, cycle slider, live estimate | **Results overview** — summary · HOS availability · route · ETA |
+| ![Interactive route map with all planned stops, legend and zoom controls](docs/screenshots/route-map.png) | ![Industry-grade turn-by-turn directions with maneuver icons and driver-style distances](docs/screenshots/turn-by-turn.png) |
+| **Route map** — every fuel / rest / break stop plotted | **Turn-by-turn directions** — 52 maneuvers, leg accordions |
+| ![Filled Drivers Daily Log sheet in the viewer modal](docs/screenshots/eld-log-modal.png) | ![Fully responsive on mobile](docs/screenshots/mobile.png) |
+| **ELD log viewer** — real filled log sheet, one per day | **Responsive** — same product on a 390 px phone |
 
-The repo is GitHub-ready: `backend/`, `frontend/`, deployment configs
-(`render.yaml`, `vercel.json`) and `.env.example` files are all included.
+---
 
-## Tech stack
+## ✨ Features
 
-**Frontend** — React 18 + **TypeScript**, Vite, Tailwind CSS,
-Leaflet + OpenStreetMap tiles, TanStack Query.
+**Trip planning**
+- 🇺🇸 **Real-time US location selectors** — instant local city/state matches plus a live
+  OpenStreetMap suggestion layer (debounced, race-safe) for any address; popular freight
+  hubs on focus; "use exact address" escape hatch.
+- ⚡ **Live estimate before you commit** — a debounced dry-run shows miles, drive time,
+  window usage and remaining 70/8 cycle while you type, with a COMPLIANT / HOS-review badge.
+- 🎚️ **Cycle slider + advanced options** — driver, carrier, truck/trailer, main office,
+  home-terminal timezone and start time when you need them.
 
-**Backend** — **Django** + **Django REST Framework**, SQLite for development
-(PostgreSQL-ready via `DATABASE_URL`), Pillow for ELD log rendering.
+**Route & schedule**
+- 🗺️ **Interactive route map** (Leaflet + OSM tiles) with every stop plotted and color-coded:
+  current, pickup, dropoff, fuel, 30-min breaks, 10-h overnight rests, 34-h restarts —
+  each marker pop-up shows arrival/departure times and duration.
+  The map is inert until clicked (Google-embed pattern): pan, scroll/pinch zoom, keyboard —
+  and a **"Recenter on route"** chip appears whenever the route leaves the viewport.
+- 🧭 **Industry-grade turn-by-turn directions** — real OSRM maneuver semantics rendered as
+  navigation icons ("Turn right onto East Aliso Street", "Take the exit toward I 10 East:
+  San Bernardino", "Take the 2nd exit at the roundabout"), bold road names, driver-style
+  distances (550 ft → 0.2 mi → 22 mi), per-leg accordions with miles/drive time/step count.
+- ⏱️ **Chronological route timeline** — the same canonical schedule the logs use, with
+  day headers, duty chips and leg summaries.
 
-**Free/open map stack** (as required — no Google Maps):
+**Compliance & logs**
+- 📊 **Live HOS availability panel** — 70/8 cycle, 11-h driving limit and 14-h window as
+  animated bars, plus next required break / next rest and totals — recomputed live from
+  the same engine output.
+- 📝 **Filled Drivers Daily Log sheets** — one per calendar day for long trips, drawn
+  pixel-accurately on the standard grid: duty-status lines with vertical transitions,
+  per-row totals that must sum to 24 h, remarks, shipping info and the 70/8 recap.
+  Preview inline, inspect in a zoomable modal, download a day PNG or the whole trip as PDF.
 
-- **Nominatim** (OpenStreetMap) for geocoding & reverse geocoding
-- **OSRM** for routing, geometry and turn-by-turn instructions
-- Cached + throttled per public API usage policies
+---
 
-## Architecture
+## 🏗️ Tech stack
+
+| Layer | Choice |
+|---|---|
+| Frontend | **React 18 + TypeScript**, Vite, Tailwind CSS, Leaflet, TanStack Query, Vitest + Testing Library |
+| Backend | **Django + Django REST Framework**, Gunicorn + WhiteNoise, Pillow + ReportLab (log rendering), pytest-django |
+| Maps (all free) | **Nominatim** geocoding · **OSRM** routing — cached, throttled and de-rated per public-API policy |
+
+## 🧱 Architecture
 
 ```
 React (Vite, TypeScript)
-   |
-   | REST API (JSON)
-   v
+   │  REST (JSON) — same-origin /api via proxy in dev & prod rewrite in cloud
+   ▼
 Django + Django REST Framework
-   |
-   +-- routing/   geocoding service (Nominatim + cache)
-   |              routing service (OSRM)
-   |              stop labeling (reverse geocode, no fabricated names)
-   |
-   +-- hos/       PURE scheduling engine (no Django/network imports)
-   |              constants · state machine · scheduler · validators
-   |
-   +-- eldlogs/   log sheet template + renderer (Pillow) + PDF export
-   |
-   +-- trips/     models · serializers · service orchestration · views
-   |
-   v
-SQLite (dev) / PostgreSQL (production)
+   ├── routing/   geocoding (Nominatim + in-memory cache) · OSRM routing
+   │              · turn-by-turn instruction builder (maneuver-aware phrasing)
+   ├── hos/       PURE scheduling engine — no Django, no network, fully unit-tested
+   │              constants · state machine · scheduler · validators
+   ├── eldlogs/   log-sheet template + Pillow renderer + PDF export
+   └── trips/     models · serializers · service orchestration · views
+   ▼
+SQLite (dev) / PostgreSQL (prod, via DATABASE_URL)
 ```
 
-The **HOS engine is independent from Django views** and from the UI — it is a
-pure-Python package (`backend/hos/`) that can be unit tested directly
-(`backend/tests/test_hos_engine.py`).
-
-### The one canonical schedule
+### One canonical schedule — never a second calculation
 
 ```
-Trip Inputs
-     ↓ Geocoding (Nominatim)
-     ↓ Routing (OSRM, per leg)
-     ↓ HOS Scheduler (hos/scheduler.py)
+Trip inputs
+     ↓ geocode (Nominatim)        ← cached, US-focused
+     ↓ route per leg (OSRM)       ← real geometry, miles, minutes, maneuvers
+     ↓ HOS scheduler (hos/)       ← deterministic, explainable
      ↓ CANONICAL ACTIVITY TIMELINE
-     ├── Map markers (Leaflet)
-     ├── Route instructions
-     ├── HOS summary
-     └── Daily ELD logs (split at local midnights → Pillow renderer)
+     ├── map markers (Leaflet)
+     ├── turn-by-turn instructions
+     ├── HOS summary + live availability
+     └── daily ELD logs (split at local midnights → Pillow)
 ```
 
-There is **never** a second scheduling calculation: the map, timeline,
-summary and the log sheets all consume the same activity list
-(`trips/services.py` → `hos/daily.py`).
+Every surface reads from the **same** activity list — the map, the timeline, the
+summary and each log sheet can never disagree.
 
-## How it works
+---
 
-1. The user enters **current location, pickup, dropoff, current cycle used**
-   (plus optional driver/carrier/vehicle/start info).
-2. The backend geocodes all three locations (cached; friendly errors for
-   invalid addresses).
-3. The home-terminal time zone is derived from the current location's state
-   (or supplied explicitly in advanced options).
-4. OSRM routes each leg (current→pickup, pickup→dropoff) returning real
-   distance (converted to miles), duration and geometry.
-5. The deterministic HOS scheduler produces the activity timeline.
-6. Every schedule passes a full validator suite before it is served —
-   a schedule containing a violation is never returned as valid.
-7. Stop positions (fuel/rest/restart) are interpolated along the route
-   geometry and labelled with real nearby places via reverse geocoding —
-   or clearly marked `"Planned fuel stop"` / `"Planned rest stop"` when no
-   place can be resolved. **Business names are never fabricated.**
-8. The timeline is split at local midnights into complete 24-hour days and
-   each day is rendered onto a high-resolution Driver's Daily Log sheet.
-9. The frontend shows the HOS summary, interactive map, chronological
-   timeline and an ELD log viewer (prev/next day, zoom, per-day PNG and
-   all-days PDF download).
+## 🧮 HOS scheduling logic
 
-## HOS scheduling logic
-
-The engine implements the FMCSA *"Interstate Truck Driver's Guide to Hours
-of Service for Property Carriers"* rules for a **property-carrying driver on
-the 70-hour/8-day cycle, no adverse conditions**:
+Implements the FMCSA *Interstate Truck Driver's Guide to Hours of Service* rules for a
+**property-carrying driver on the 70-hour/8-day cycle, no adverse conditions**:
 
 | Rule | Value | Reference |
 |---|---|---|
 | Driving limit | 11 h per driving period | §395.3(a)(3) |
 | Driving window | 14 consecutive h — starts when any work begins | §395.3(a)(2) |
-| 30-min break | after **8 cumulative** (not consecutive) driving h; any consecutive ≥30-min non-driving period qualifies (off duty, sleeper berth **or on-duty-not-driving**) | §395.3(a)(3)(ii) |
+| 30-min break | after **8 cumulative** driving h; any ≥30-min consecutive non-driving period qualifies | §395.3(a)(3)(ii) |
 | Daily reset | 10 consecutive h off duty / sleeper berth restarts the 11 h and 14 h clocks | §395.3(a)(1) |
 | Cycle | 70 h on-duty in any rolling 8 days — only *driving* past the limit is a violation | §395.3(b) |
-| Restart | 34 consecutive h off duty / sleeper resets the cycle (optional, applied automatically and **explicitly** when needed) | §395.3(c) |
+| Restart | 34 consecutive h off duty resets the cycle (applied automatically, **and explicitly labelled**) | §395.3(c) |
 
-### The three limits are tracked independently
+The engine tracks **driving hours, the 14-h window and the 70/8 cycle independently** —
+it never conflates a window expiry (only driving is prohibited) with a cycle exhaustion
+(driving must stop and a 34-h restart is scheduled, e.g. *"34-hour restart required to
+continue trip"*).
 
-The engine never confuses:
+**Deterministic priority** at every step — exactly one decision:
 
-- **A.** driving hours in the current period,
-- **B.** the 14-hour window, and
-- **C.** the rolling 70/8 on-duty cycle.
-
-A driver can have driving/window capacity left but no cycle hours — in that
-case driving stops and an explicit 34-hour restart is scheduled
-(`"34-hour restart required to continue trip"`). The cycle can also stop
-driving mid-window, and the window can expire while non-driving work
-(pickup/dropoff) continues legally — only *driving* is prohibited after the
-window expires.
-
-### Deterministic scheduling strategy
-
-At every step the scheduler inserts exactly one activity based on the first
-blocking condition (priority order):
-
-1. 70/8 cycle exhausted → **34-hour restart** (explicit) or infeasible error
-2. 11 h driving / 14 h window exhausted → **10-hour sleeper-berth reset**
-3. 8 cumulative driving hours → **30-minute break** (off duty)
-4. 1,000 miles since last fuel → **30-minute fuel stop** (on-duty not driving)
+1. 70/8 cycle exhausted → **34-h restart** (explicit) or a structured *infeasible* error
+2. 11 h driving / 14 h window exhausted → **10-h sleeper-berth reset**
+3. 8 cumulative driving hours → **30-min break**
+4. 1,000 miles since last fuel → **30-min fuel stop** (`FUEL_DURATION_MINUTES`)
 5. otherwise → **drive the largest legal slice**
 
-Additional rules:
+Plus: pickup & dropoff are exactly 1 h each (on-duty not driving — consumes window and
+cycle, **not** the 11-h allowance, and doubles as a qualifying break); all times use the
+home-terminal timezone derived from the trip start; every duty-status change writes a
+remark; every day's four totals must equal exactly 24 h — verified programmatically, and
+a schedule with any violation is never served as valid.
 
-- **Pickup and dropoff** are exactly 1 h each, logged as *on duty not
-  driving* — they consume the window and the cycle but **not** the 11-hour
-  driving allowance. A 1-hour loading stop also satisfies the 30-minute
-  break rule (it is a consecutive non-driving period ≥ 30 min).
-- **Fueling** (30 min, named constant `FUEL_DURATION_MINUTES`) is placed so
-  no driving stretch exceeds 1,000 miles, never after a legal driving
-  threshold has already been exceeded, and it doubles as a qualifying break.
-- **Time base:** all logs use the home-terminal time zone (derived from the
-  starting location's state, override in advanced options). Crossing
-  state/time-zone lines never changes the log's time base.
-- **Remarks:** every duty-status change produces a remark with time, place
-  (city/state — reverse geocoded) and the new duty status.
-- **Totals:** each daily log's four status totals must equal exactly 24 h —
-  verified programmatically; the backend refuses to serve a log that fails.
+---
 
-## API documentation
+## 📡 API documentation
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/trips/plan/` | Full pipeline: geocode → route → schedule → validate → render logs. Returns trip, route, schedule, hos_summary, markers, logs. |
-| POST | `/api/trips/validate/` | Dry-run feasibility check (nothing persisted). |
-| GET | `/api/trips/{id}/` | Stored trip detail. |
-| GET | `/api/trips/{id}/route/` | Route geometry + per-leg turn-by-turn. |
-| GET | `/api/trips/{id}/logs/` | All daily logs (totals, miles, image URLs). |
-| GET | `/api/trips/{id}/logs/{day}/` | One day's log data. |
-| GET | `/api/trips/{id}/logs/{day}/image/` | Rendered PNG of that log sheet. |
-| GET | `/api/trips/{id}/logs/pdf/` | **All daily logs as one PDF.** |
-| GET | `/api/geocode/?q=…` | Geocoding helper (cached). |
-| GET | `/api/health/` | Health + configured HOS rules. |
+| POST | `/api/trips/plan/` | Full pipeline: geocode → route → schedule → validate → render logs |
+| POST | `/api/trips/validate/` | Dry-run feasibility check (nothing persisted) |
+| GET | `/api/trips/{id}/` | Stored trip detail (home-terminal timestamps) |
+| GET | `/api/trips/{id}/route/` | Route geometry + per-leg turn-by-turn (maneuver + modifier per step) |
+| GET | `/api/trips/{id}/logs/` | All daily logs (totals, miles, image URLs) |
+| GET | `/api/trips/{id}/logs/{day}/` | One day's log data |
+| GET | `/api/trips/{id}/logs/{day}/image/` | Rendered PNG of that log sheet |
+| GET | `/api/trips/{id}/logs/pdf/` | **All daily logs as one PDF** |
+| GET | `/api/geocode/suggest/?q=…` | Live US place suggestions (city/state + addresses) |
+| GET | `/api/geocode/?q=…` | Geocoding helper (cached) |
+| GET | `/api/health/` | Health + configured HOS rules |
 
-Example request:
+Example:
 
 ```json
 POST /api/trips/plan/
@@ -207,81 +178,50 @@ POST /api/trips/plan/
   "driver_name": "John Doe",
   "carrier_name": "ACME Freight LLC",
   "truck_number": "123",
-  "trailer_number": "456",
-  "main_office": "Chicago, IL"
+  "trailer_number": "456"
 }
 ```
 
-Input validation: all locations non-empty; `0 ≤ current_cycle_used ≤ 70`;
-useful HTTP status codes (400 invalid address, 503 map service unavailable,
-422 HOS infeasible, …). Every error — validation, planning or server-side —
-uses one structured shape, never raw tracebacks:
+**Errors are structured and friendly** — never a raw traceback:
 
 ```json
 { "error": "Pickup location could not be found. Try adding the city and state.",
   "code": "address-not-found" }
 ```
 
-All timestamps in every endpoint are expressed in the trip's home-terminal
-time zone (the same convention used by the log sheets).
+`400` invalid address · `422` HOS-infeasible (with the blocking rule) · `503` map service
+unreachable — and the frontend maps every code to a human message with a retry path.
 
-## ELD log rendering
+---
 
-The renderer (`backend/eldlogs/`) draws the **actual log sheet** — replicating
-the supplied blank Driver's Daily Log layout at 200 dpi (landscape letter):
+## 🧪 Testing
 
-- header: date, From/To, total miles driving today, total mileage, carrier,
-  truck/tractor + trailer numbers, main office, home terminal, driver
-  signature, co-driver
-- the 24-hour graph grid with hour/half-hour ticks and the four official
-  duty-status rows (Off Duty, Sleeper Berth, Driving, On Duty Not Driving)
-- solid duty lines with **vertical transitions at every status change**
-- per-row totals in the right-hand column (must sum to 24 h)
-- remarks, shipping docs section and the 70/8 recap (A/B/C values, with a
-  note when a 34-hour restart was taken)
+**Backend — 80 tests** (`backend/tests/`):
 
-All positions are computed mathematically from centralized constants
-(`eldlogs/coordinates.py`: `GRID_X`, `GRID_WIDTH`, `ROW_HEIGHT`,
-`HOUR_WIDTH`, …) — no scattered pixel values. Missing optional info renders
-as `"Not provided"` (never fabricated). Each PDF page preserves the sheet's
-visual layout.
+- `test_hos_engine.py` — the assessment accuracy scenarios + edges (zero-length legs,
+  same locations, cycle 0/65/70, midnight crossings, validator mutation-catching)
+- `test_invariants.py` — property-style sweep over 13 scenarios: chronological order,
+  no gaps/overlaps, daily totals = exactly 1,440 min, 11 h / 14 h / 8 h-break / 70 h
+  never violated, fuel threshold never exceeded, daily miles = route miles
+- `test_api.py` — API contract with mocked geocoder/router, multi-day trips, error codes
+- `test_router_instructions.py` — maneuver-aware instruction phrasing + payload contract
+- `test_suggest.py` — live suggestions: shaping, dedup, upstream-failure degradation, cache
 
-## Testing
-
-**Backend — 52 automated tests** (`backend/tests/`):
-
-- `test_hos_engine.py` — the 15 assessment accuracy scenarios plus edge cases
-  (zero-length legs, same locations, cycle 0/65/70, midnight crossing,
-  validators catch mutations, stop positions on the route).
-- `test_invariants.py` — property-style sweep across 13 deterministic
-  scenarios asserting the global invariants for every schedule: positive
-  durations, chronological order, no overlaps, daily totals = exactly
-  1,440 min, no gaps, 11 h driving / 14 h window / 8 h break / 70 h cycle
-  never violated, fuel threshold never exceeded, pickup & dropoff exactly
-  once, daily miles = route miles.
-- `test_api.py` — API contract with mocked geocoder/router: full pipeline,
-  multi-day trips, friendly error codes, `geocode` returning structured 400
-  (never 500), `validate` falling back gracefully on an invalid timezone,
-  `plan`/`validate` sharing one preparation stage, and `trip_detail`
-  exposing home-terminal timestamps consistent with `/plan/`.
+**Frontend — 37 tests** (Vitest + Testing Library): form behavior and payloads,
+live-suggestion layer, live estimate strip, instruction rendering and distance formats,
+maneuver-icon mapping, state handling, error mapper.
 
 ```bash
-cd backend && ./venv/bin/python -m pytest tests/ -v
+cd backend  && ./venv/bin/python -m pytest tests/ -v   # 80 passed
+cd frontend && bun run test                             # 37 passed
 ```
 
-**Frontend — 11 behavior tests** (`frontend/src/**/*.test.tsx`, Vitest +
-Testing Library): form validation and submit payloads, demo-trip loading,
-remaining-cycle display, empty/loading/error state behavior, retry action,
-and the error mapper that never leaks raw network failures to users.
+---
+
+## 🚀 Local development
 
 ```bash
-cd frontend && bun run test      # or: npm run test
-```
-
-## Local development
-
-```bash
-# --- backend ---
+# backend
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
@@ -289,56 +229,104 @@ cp .env.example .env
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
 
-# --- frontend ---
-cd ../frontend
-bun install        # or npm install
+# frontend (new terminal)
+cd frontend
+bun install            # or: npm install
 cp .env.example .env
-bun run dev        # Vite on :3000, proxies /api -> :8000
+bun run dev            # Vite on :3000 — proxies /api and /media to :8000
 ```
 
-Open http://localhost:3000. A one-command start (`bash start.sh` from the
-repo root — or simply `bun run dev`) launches both services: the Vite dev
-server boots the Django API automatically and proxies `/api` and `/media`
-to it, so the browser only ever talks to :3000.
+Open **http://localhost:3000** — the browser only ever talks to :3000. The planner form
+ships three deterministic example trips (short trip / long haul / high cycle) for one-click QA.
 
-The planner form includes three deterministic **example trips** (short trip,
-long haul, high cycle usage) for quick manual QA; selecting one populates
-the form without submitting it.
+---
 
-## Deployment
+## ☁️ Deployment
 
-**Backend → Render** (`render.yaml` included): Python web service, root dir
-`backend`, build = install + migrate + collectstatic, start = gunicorn. Set
-the env vars from `backend/.env.example` (DJANGO_SECRET_KEY, DATABASE_URL
-with a Postgres instance, CORS_ALLOWED_ORIGINS pointing at the frontend
-domain, DJANGO_ALLOWED_HOSTS).
+Three supported paths — pick one. All configs are in the repo root.
 
-**Frontend → Vercel** (`vercel.json` included): builds `frontend/`, rewrites
-`/api/*` and `/media/*` to the backend URL (or set `VITE_API_BASE_URL` to
-the backend origin instead).
+### Option A — Render (backend) + Vercel (frontend) — free, recommended
 
-**Database → PostgreSQL**: set `DATABASE_URL` — the settings file switches
-from SQLite automatically.
+1. **Backend**: push this repo to GitHub → Render dashboard → **New → Blueprint** →
+   pick the repo. `render.yaml` provisions the web service **and a free PostgreSQL**,
+   sets `DJANGO_SECRET_KEY`, runs migrations and exposes `/api/health/` as the health check.
+2. **Frontend**: Vercel → **New Project** → import the same repo (zero build config needed —
+   `vercel.json` handles it). After the first deploy, edit `vercel.json` rewrites to point
+   `REPLACE-WITH-YOUR-BACKEND.onrender.com` at your Render URL and redeploy — the browser
+   stays same-origin, so **no CORS setup is required**.
+3. *(Only if you prefer direct cross-origin calls)* set `VITE_API_BASE_URL` to the backend
+   URL at Vercel build time **and** set `CORS_ALLOWED_ORIGINS` on Render to your Vercel URL.
 
-## Assumptions & known limitations
+> **Free-tier notes** — Render free instances sleep after ~15 min idle (first request wakes
+> them in ~50 s) and the free Postgres expires after 30 days. Rendered ELD images live on
+> the instance disk: they survive normal operation but are cleared on deploys — the API then
+> answers with a friendly *"please re-plan the trip"*. Mount the commented disk in
+> `render.yaml` (paid) for durable media. Netlify works identically via `netlify.toml`.
 
-- Property-carrying driver, 70 h/8-day cycle, **no adverse driving
-  conditions** exception, no short-haul exceptions (isolated for future
-  extension in `hos/constants.py`).
-- Fuel stop duration 30 min and pickup/dropoff 1 h are named constants
-  (`hos/constants.py`), displayed on the timeline — never hidden.
-- A 30-minute pre-trip on-duty period (inspection/paperwork) is included and
-  visibly labelled, mirroring the assessment's example timeline (06:00 On
-  Duty → 06:30 Driving). If no start time is provided, 06:00 home-terminal
-  is the clearly marked assumed departure.
-- The 70/8 recap column B ("previous 7 days") uses the single provided
-  current-cycle value plus prior trip days; day-by-day history beyond the
-  trip inputs is not modelled (documented approximation).
-- Stop labels use reverse-geocoded real places when available; otherwise
-  stops are explicitly labelled "Planned fuel/rest stop" — business names
-  are never invented.
-- Sleeper-berth **split-sleeper** provisions (7/3 or 8/2 pairing) are not
-  used by the scheduling strategy; the simple 10-hour reset is applied (as
-  permitted by the assessment assumptions).
-- Route data comes from the OSRM demo server; if it is unreachable the API
-  returns a friendly retry message — route data is never fabricated.
+### Option B — Docker Compose (single VM / self-host)
+
+```bash
+DJANGO_SECRET_KEY=$(python -c "import secrets;print(secrets.token_urlsafe(50))") \
+  docker compose up --build
+```
+
+Frontend on **http://localhost:8080** (nginx serves the SPA and proxies `/api` + `/media`
+to gunicorn), backend on **http://localhost:8000**. SQLite and rendered logs live on named
+volumes. Swap in Postgres by adding a `db` service and setting `DATABASE_URL`.
+
+### Option C — any static host + any Python host
+
+`bun run build` produces `frontend/dist` (set `VITE_API_BASE_URL` to the backend origin).
+The backend is a standard Gunicorn WSGI app — `collectstatic` + `migrate` + `gunicorn
+config.wsgi:application` works on Render, Railway, Fly.io, EC2, …
+
+---
+
+## 📁 Project structure
+
+```
+├── backend/
+│   ├── config/            settings (env-driven) · urls · wsgi
+│   ├── hos/               ⚙️ pure HOS engine — constants · state · scheduler · validators
+│   ├── routing/           geocoder + suggest · OSRM router · instruction builder
+│   ├── eldlogs/           log-sheet geometry + Pillow renderer + PDF
+│   ├── trips/             models · serializers · views · service orchestration
+│   ├── tests/             80 tests (engine · invariants · API · instructions · suggest)
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── features/      trip-planner · route-map · timeline · hos-summary · eld-logs
+│   │   ├── components/    LocationInput (live suggestions) · RouteInstructions · …
+│   │   ├── services/      api client (typed, structured errors)
+│   │   └── types/         shared TypeScript contracts
+│   ├── Dockerfile · nginx.conf
+│   └── package.json
+├── docs/screenshots/      the images above
+├── docker-compose.yml     one-command production stack
+├── render.yaml            backend blueprint + free Postgres
+├── vercel.json / netlify.toml
+└── README.md
+```
+
+---
+
+## 📝 Assumptions & known limitations
+
+- Property-carrying driver, 70 h/8-day cycle, **no adverse driving conditions**, no
+  short-haul exceptions (isolated for extension in `hos/constants.py`).
+- 30-min fuel stop, 1-h pickup and 1-h dropoff are named constants and visibly labelled —
+  never hidden. A 30-min pre-trip on-duty period mirrors the assessment's example timeline
+  (06:00 On Duty → 06:30 Driving); assumed departure is 06:00 home-terminal when unset.
+- The 70/8 recap column B ("previous 7 days") uses the provided current-cycle value plus
+  the trip's own days; day-by-day history beyond the inputs is a documented approximation.
+- Stop labels come from reverse geocoding — real places when resolvable, otherwise an
+  explicit "Planned fuel/rest stop". **Business names are never invented.**
+- Sleeper-berth split provisions (7/3, 8/2) are not used; the simple 10-h reset is applied
+  as permitted by the assessment assumptions.
+- Route data comes from the OSRM demo server; if unreachable the API returns a friendly
+  retry message — route data is never fabricated.
+
+## 📄 License
+
+[MIT](LICENSE) — free to use, study and adapt.

@@ -176,3 +176,23 @@ Work Log:
 Stage Summary:
 - One real cross-commit race bug fixed (chip + potential inert map); one mobile occlusion polished.
 - Final state: backend 80/80, frontend 37/37, builds clean, live E2E green desktop+mobile, requirements checklist 100% covered. Task complete.
+
+---
+Task ID: 9 (Production deployment config + polished GitHub README)
+Agent: Super Z (main agent)
+Task: User asked for production deployment config and a polished GitHub README (and asked to switch to English).
+
+Work Log:
+- Audited existing deploy plumbing: settings.py already env-driven (SECRET_KEY/DEBUG/ALLOWED_HOSTS/DATABASE_URL postgres switch/CORS), whitenoise manifest storage in prod, gunicorn+cors in requirements; frontend supports VITE_API_BASE_URL; render.yaml + vercel.json existed (placeholder backend URL).
+- MEDIA contract verified: log PNGs render at plan time into backend/media, served via FileResponse; missing files → friendly "re-plan" 404 → deployment notes must call out ephemeral free-tier disks.
+- frontend/.gitignore created (was missing).
+- render.yaml UPGRADED: + free PostgreSQL (databases: block) with DATABASE_URL fromDatabase, CORS_ALLOWED_ORIGINS sync:false, plan: free notes (sleep/expiry), commented paid disk block for durable media, full usage header.
+- vercel.json: placeholder made explicit (.onrender.com). NEW netlify.toml alternative (build + /api,/media transparent rewrites + SPA fallback).
+- NEW Docker production stack: backend/Dockerfile (slim, collectstatic at build, migrate+gunicorn CMD), backend/.dockerignore, frontend/Dockerfile (oven/bun build → nginx:1.27-alpine serve), frontend/nginx.conf (immutable asset cache, /api + /media proxy to backend:8000 with 120s read timeout, SPA fallback, gzip), frontend/.dockerignore, docker-compose.yml (frontend :8080, backend :8000, named volumes db+media).
+- settings.py: SQLITE_PATH env added so compose can point SQLite at a volume (/data/db.sqlite3); .env.example documents it. Verified: manage.py check clean, backend 80/80 still green.
+- All configs machine-validated: vercel.json JSON ✓, render.yaml + docker-compose YAML ✓, netlify.toml TOML ✓ (docker binary unavailable in sandbox).
+- README.md REWRITTEN for current product: badge header, 6 REAL screenshots captured live into docs/screenshots/ (home, plan-results, route-map, turn-by-turn, eld-log-modal, mobile), features reflect shipped UI (live US suggestions, live estimate strip, HOS availability panel, activation-pattern map + recenter chip, industry-grade turn-by-turn, ELD viewer/PDF), architecture + canonical-schedule diagrams, HOS rules table, API table now includes /api/geocode/suggest/, test counts corrected 52→80 backend / 11→37 frontend, deployment section with 3 options (Render+Vercel step-by-step w/ free-tier caveats, Docker Compose, generic), project structure, limitations, MIT LICENSE file added.
+- Final sanity: frontend build clean (419.4 kB), /api/health ok via proxy, frontend 200.
+
+Stage Summary:
+- Repo is now deployment-complete: Render blueprint (+free Postgres), Vercel/Netlify frontend configs, and a full Docker stack, plus a screenshot-rich, numerically accurate GitHub README. User replaces exactly two placeholders: backend URL in vercel.json (or netlify.toml) and CORS_ALLOWED_ORIGINS on Render if using direct mode.

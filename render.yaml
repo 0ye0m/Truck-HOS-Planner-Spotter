@@ -1,8 +1,33 @@
+# ── TruckHOS Planner — Render Blueprint ────────────────────────────
+# One-click production deploy of the Django backend (+ free PostgreSQL).
+#
+# Usage:
+#   1. Push this repo to GitHub.
+#   2. On https://dashboard.render.com choose "New" → "Blueprint"
+#      and pick the repo — Render reads this file and provisions everything.
+#   3. After the first deploy, set CORS_ALLOWED_ORIGINS (Render → your
+#      service → Environment) to your frontend origin, e.g.
+#      https://truckhos-planner.vercel.app
+#
+# NOTE on storage: free plan instances have an EPHEMERAL disk. Rendered
+# ELD log images live in backend/media — they survive normal operation
+# but are cleared on every deploy/restart, and stored trips live in
+# Postgres while their image files are lost (the API answers with a
+# friendly "please re-plan the trip" 404). For durable media, upgrade
+# the service and uncomment the `disk` block below.
+
+databases:
+  - name: truckhos-db
+    databaseName: truckhos
+    user: truckhos
+    plan: free            # free Postgres expires after 30 days — upgrade or drop this block to stay on SQLite
+
 services:
   - type: web
     name: truckhos-backend
     runtime: python
     rootDir: backend
+    plan: free            # free tier sleeps after ~15 min idle; first request wakes it (~50 s)
     buildCommand: |
       python -m venv venv &&
       ./venv/bin/pip install --upgrade pip &&
@@ -20,3 +45,21 @@ services:
         value: ".onrender.com"
       - key: WEB_CONCURRENCY
         value: "2"
+      # PostgreSQL provisioned above (delete both lines + the databases
+      # block to run on SQLite instead).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: truckhos-db
+          property: connectionString
+      # Origins of the deployed frontend (comma-separated). Only needed
+      # when the frontend calls the backend cross-origin
+      # (VITE_API_BASE_URL mode). Leave as-is when using the Vercel
+      # rewrite/proxy mode, which is same-origin and needs no CORS.
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+    # Persistent media (paid plans only) — un-comment to keep rendered
+    # ELD sheets across deploys:
+    # disk:
+    #   name: truckhos-media
+    #   mountPath: /opt/render/project/src/backend/media
+    #   sizeGB: 1
